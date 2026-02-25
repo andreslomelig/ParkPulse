@@ -76,7 +76,7 @@ Use `.env.example` for placeholders only.
 
 ------------------------------------------------------------------------
 
-## 🗂 Project Structure (WIP)
+## Project Structure (WIP)
 
     src/
       navigation/
