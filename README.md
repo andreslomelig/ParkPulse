@@ -68,6 +68,15 @@ Use `.env.example` for placeholders only.
 
 ------------------------------------------------------------------------
 
+## Supabase Bootstrap (Now Available)
+
+- Run the SQL in [supabase/bootstrap.sql](supabase/bootstrap.sql) inside Supabase SQL Editor.
+- Full setup guide: [docs/supabase-setup.md](docs/supabase-setup.md)
+
+This creates the `places` table and seeds pilot markers for Aguascalientes.
+
+------------------------------------------------------------------------
+
 ## Scripts
 
 -   `npm run start` --- Start Metro bundler

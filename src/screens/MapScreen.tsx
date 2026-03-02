@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
 import * as Location from "expo-location";
+import { fetchPlaces, type ParkingPlace, type ParkingStatus } from "../lib/places";
 
 type PermissionState = "unknown" | "granted" | "denied";
 
@@ -10,14 +11,25 @@ export default function MapScreen() {
 
   const [permission, setPermission] = useState<PermissionState>("unknown");
   const [region, setRegion] = useState<Region | null>(null);
+  const [places, setPlaces] = useState<ParkingPlace[]>([]);
 
-  // Dummy marker (later you will replace with backend places)
-  const dummyMarker = useMemo(() => {
-    // If region not ready, place marker in a safe fallback
-    const lat = region?.latitude ?? 21.88234;   // Aguascalientes-ish fallback
-    const lng = region?.longitude ?? -102.28259;
-    return { latitude: lat + 0.002, longitude: lng + 0.002 };
-  }, [region]);
+  useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      const nextPlaces = await fetchPlaces();
+      if (active) setPlaces(nextPlaces);
+    };
+
+    load().catch((e) => {
+      console.error(e);
+      Alert.alert("Error", "No se pudo cargar estacionamientos.");
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -51,6 +63,25 @@ export default function MapScreen() {
     });
   }, []);
 
+  const mapReadyPlaces = useMemo(() => {
+    if (places.length > 0) return places;
+
+    const lat = region?.latitude ?? 21.88234;
+    const lng = region?.longitude ?? -102.28259;
+
+    return [
+      {
+        id: "boot-fallback",
+        name: "Estacionamiento (demo)",
+        latitude: lat + 0.002,
+        longitude: lng + 0.002,
+        status: "unknown" as ParkingStatus,
+        updatedAt: null,
+        source: "fallback" as const,
+      },
+    ];
+  }, [places, region]);
+
   const onCenterPress = async () => {
     try {
       const pos = await Location.getCurrentPositionAsync({
@@ -67,6 +98,32 @@ export default function MapScreen() {
     } catch (e) {
       console.error(e);
       Alert.alert("Error", "No se pudo centrar el mapa.");
+    }
+  };
+
+  const statusToLabel = (status: ParkingStatus) => {
+    switch (status) {
+      case "available":
+        return "Disponible";
+      case "full":
+        return "Lleno";
+      case "closed":
+        return "Cerrado";
+      default:
+        return "Sin datos";
+    }
+  };
+
+  const statusToColor = (status: ParkingStatus) => {
+    switch (status) {
+      case "available":
+        return "#15a34a";
+      case "full":
+        return "#ef4444";
+      case "closed":
+        return "#334155";
+      default:
+        return "#f59e0b";
     }
   };
 
@@ -98,12 +155,24 @@ export default function MapScreen() {
         showsUserLocation={permission === "granted"}
         showsMyLocationButton={false}
       >
-        <Marker
-          coordinate={dummyMarker}
-          title="Estacionamiento (demo)"
-          description="Marcador de prueba Sprint 0"
-          onPress={() => Alert.alert("Demo", "Aquí abrirás el bottom sheet en Sprint 1")}
-        />
+        {mapReadyPlaces.map((place) => (
+          <Marker
+            key={place.id}
+            coordinate={{
+              latitude: place.latitude,
+              longitude: place.longitude,
+            }}
+            pinColor={statusToColor(place.status)}
+            title={place.name}
+            description={`Estado: ${statusToLabel(place.status)}`}
+            onPress={() =>
+              Alert.alert(
+                place.name,
+                `Estado: ${statusToLabel(place.status)}\nAquí abrirás el bottom sheet en Sprint 1`
+              )
+            }
+          />
+        ))}
       </MapView>
 
       <Pressable style={styles.centerBtn} onPress={onCenterPress}>
