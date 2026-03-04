@@ -99,7 +99,7 @@ export async function fetchPlaces(): Promise<ParkingPlace[]> {
   const { data, error } = await supabase
     .from("places")
     .select(
-      "id, name, latitude, longitude, lat, lng, status, current_status, effective_status, updated_at, last_reported_at"
+      "id, name, latitude, longitude, current_status, updated_at"
     )
     .order("name", { ascending: true });
 
