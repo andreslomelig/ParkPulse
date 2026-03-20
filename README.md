@@ -49,10 +49,16 @@ limits are still pending.
 
 ### Prerequisites
 
--   Node.js 18+
+-   Node.js 22 recommended (`.nvmrc` included)
 -   npm
 -   Expo CLI (via `npx`)
 -   (Optional) Android Studio / Xcode for simulators
+
+If you use `nvm`:
+
+``` bash
+nvm use
+```
 
 ------------------------------------------------------------------------
 
@@ -74,6 +80,36 @@ Use a clean cache if native UI packages were added or updated:
 
 ``` bash
 npx expo start -c
+```
+
+------------------------------------------------------------------------
+
+## Troubleshooting
+
+### `node` or `npm` fails before install
+
+If you see an error similar to:
+
+    Library not loaded: ... libsimdjson ...
+
+your local Homebrew Node installation is broken, so the app cannot start yet.
+
+Fix it by reinstalling Node, or by using `nvm` with the version in `.nvmrc`.
+
+Example with Homebrew:
+
+``` bash
+brew reinstall simdjson
+brew reinstall node
+```
+
+Example with `nvm`:
+
+``` bash
+nvm install 22
+nvm use 22
+npm install
+npm run start
 ```
 
 ------------------------------------------------------------------------
