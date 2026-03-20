@@ -7,6 +7,20 @@ anti-spam rules.
 
 ------------------------------------------------------------------------
 
+## Current App Status
+
+-   Map-first pilot experience for Aguascalientes
+-   Parking place bottom sheet with richer place details
+-   Search overlay with local client-side filtering
+-   Menu shell with saved places / recent reports / login placeholder
+-   Local report flow with proximity validation (UI prototype)
+-   Supabase read integration for seeded `places`
+
+Backend write flows, OTP auth, TTL enforcement, and server-side rate
+limits are still pending.
+
+------------------------------------------------------------------------
+
 ## MVP (Pilot Scope)
 
 -   Map with parking places (pilot zone)
@@ -21,8 +35,12 @@ anti-spam rules.
 
 -   **Expo + React Native (TypeScript)**
 -   **react-native-maps**
+-   **@gorhom/bottom-sheet**
+-   **react-native-gesture-handler**
+-   **react-native-reanimated**
 -   **Supabase (Postgres + PostGIS)** *(backend planned / in progress)*
 -   **GitHub Actions (CI)**
+-   **Jest + React Native Testing Library**
 -   **EAS Build (release pipeline)**
 
 ------------------------------------------------------------------------
@@ -50,6 +68,12 @@ npm install
 
 ``` bash
 npm run start
+```
+
+Use a clean cache if native UI packages were added or updated:
+
+``` bash
+npx expo start -c
 ```
 
 ------------------------------------------------------------------------
@@ -82,6 +106,7 @@ This creates the `places` table and seeds pilot markers for Aguascalientes.
 -   `npm run start` --- Start Metro bundler
 -   `npm run lint` --- Run ESLint
 -   `npm run typecheck` --- Run TypeScript checks
+-   `npm test` --- Run frontend Jest tests
 
 ------------------------------------------------------------------------
 
@@ -105,6 +130,25 @@ GitHub Actions runs on Pull Requests:
 -   expo-doctor
 -   lint
 -   typecheck
+-   test
+
+------------------------------------------------------------------------
+
+## Frontend Testing
+
+Current UI test coverage focuses on stable frontend behavior instead of
+gesture feel:
+
+-   search overlay opens and filters places
+-   menu shell opens
+-   report flow opens from the place sheet
+-   nearby report submission shows confirmation
+
+Files:
+
+-   `jest.config.js`
+-   `jest.setup.ts`
+-   `src/screens/MapScreen.test.tsx`
 
 ------------------------------------------------------------------------
 
@@ -124,47 +168,3 @@ GitHub Actions runs on Pull Requests:
 
 Proprietary (for now).\
 Update when ready.
-
-------------------------------------------------------------------------
-
-# Pro Repo Extras (High Value, Low Effort)
-
-## 1️⃣ `.env.example`
-
-Create a file named `.env.example`:
-
-    EXPO_PUBLIC_SUPABASE_URL=
-    EXPO_PUBLIC_SUPABASE_ANON_KEY=
-
-------------------------------------------------------------------------
-
-## 2️⃣ Ensure `.env` is Ignored
-
-Make sure your `.gitignore` includes:
-
-    .env
-    .env.*
-
-------------------------------------------------------------------------
-
-## 3️⃣ Pull Request Template (Optional but Recommended)
-
-Create:
-
-    .github/pull_request_template.md
-
-With:
-
-``` md
-## What
-- 
-
-## Why
-- 
-
-## How to test
-- 
-
-## Jira
-- PD-XX
-```
