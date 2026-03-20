@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   Pressable,
+  ScrollView,
+  TextInput,
   StyleSheet,
   Text,
   View,
@@ -111,6 +115,31 @@ export default function MapScreen() {
   const [draftPlaceCoord, setDraftPlaceCoord] = useState<LatLng | null>(null);
   const [reportingPlaceId, setReportingPlaceId] = useState<string | null>(null);
   const [placeSheetIndex, setPlaceSheetIndex] = useState(0);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>([
+    "Centro - Plaza Patria",
+    "Altaria Mall",
+    "San Marcos",
+  ]);
+  const [savedPlaceIds] = useState<string[]>(["fallback-1", "fallback-2"]);
+  const [recentReports] = useState<
+    { id: string; placeName: string; status: ParkingStatus; timeLabel: string }[]
+  >([
+    {
+      id: "report-1",
+      placeName: "Centro - Plaza Patria",
+      status: "available",
+      timeLabel: "Hace 8 min",
+    },
+    {
+      id: "report-2",
+      placeName: "Zona Feria - Estadio",
+      status: "full",
+      timeLabel: "Hace 21 min",
+    },
+  ]);
   const placeSheetSnapPoints = useMemo(() => ["32%", "76%"], []);
   const isPlaceSheetExpanded = placeSheetIndex === 1;
 
@@ -213,6 +242,20 @@ export default function MapScreen() {
     return mapReadyPlaces.find((place) => place.id === reportingPlaceId) ?? null;
   }, [mapReadyPlaces, reportingPlaceId]);
 
+  const filteredPlaces = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return mapReadyPlaces.slice(0, 8);
+
+    return mapReadyPlaces.filter((place) => {
+      const haystack = `${place.name} ${statusToLabel(place.status)}`.toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [mapReadyPlaces, searchQuery]);
+
+  const savedPlaces = useMemo(() => {
+    return mapReadyPlaces.filter((place) => savedPlaceIds.includes(place.id));
+  }, [mapReadyPlaces, savedPlaceIds]);
+
   useEffect(() => {
     if (!selectedPlaceId) return;
 
@@ -233,6 +276,50 @@ export default function MapScreen() {
       console.error(e);
       Alert.alert("Error", "No se pudo centrar el mapa.");
     }
+  };
+
+  const openSearch = () => {
+    setIsSearchOpen(true);
+  };
+
+  const closeSearch = () => {
+    setIsSearchOpen(false);
+    setSearchQuery("");
+  };
+
+  const openMenu = () => {
+    setIsMenuOpen(true);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
+  const focusPlaceFromSearch = (place: ParkingPlace) => {
+    setSelectedPlaceId(place.id);
+    setReportingPlaceId(null);
+    setIsSearchOpen(false);
+
+    const nextRegion: Region = {
+      latitude: place.latitude,
+      longitude: place.longitude,
+      latitudeDelta: 0.012,
+      longitudeDelta: 0.012,
+    };
+
+    setRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 450);
+
+    requestAnimationFrame(() => {
+      placeSheetRef.current?.snapToIndex(0);
+      setPlaceSheetIndex(0);
+    });
+
+    setRecentSearches((prev) => {
+      const next = [place.name, ...prev.filter((item) => item !== place.name)];
+      return next.slice(0, 5);
+    });
+    setSearchQuery("");
   };
 
   const onStartAddPlace = () => {
@@ -438,11 +525,11 @@ export default function MapScreen() {
       </MapView>
 
       <View style={styles.topBar}>
-        <Pressable style={styles.menuButton} onPress={() => Alert.alert("Proximo paso", "Aqui abriremos menu, perfil y acceso.")}>
+        <Pressable style={styles.menuButton} onPress={openMenu}>
           <Text style={styles.menuButtonIcon}>≡</Text>
         </Pressable>
 
-        <Pressable style={styles.searchBar} onPress={() => Alert.alert("Busqueda", "La barra de busqueda sera el siguiente flujo UI.")}>
+        <Pressable style={styles.searchBar} onPress={openSearch}>
           <Text style={styles.searchIcon}>⌕</Text>
           <View style={styles.searchCopy}>
             <Text style={styles.searchTitle}>Buscar estacionamiento</Text>
@@ -703,6 +790,233 @@ export default function MapScreen() {
           </Text>
         </View>
       )}
+
+      <Modal visible={isSearchOpen} animationType="fade" transparent onRequestClose={closeSearch}>
+        <KeyboardAvoidingView
+          style={styles.searchModalBackdrop}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Pressable style={styles.searchModalDismissArea} onPress={closeSearch} />
+
+          <View style={styles.searchModalCard}>
+            <View style={styles.searchModalTopRow}>
+              <View style={styles.searchInputWrap}>
+                <Text style={styles.searchInputIcon}>⌕</Text>
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Buscar zona, plaza o estacionamiento"
+                  placeholderTextColor="#94a3b8"
+                  autoFocus
+                  style={styles.searchInput}
+                />
+              </View>
+              <Pressable style={styles.searchCloseBtn} onPress={closeSearch}>
+                <Text style={styles.searchCloseBtnText}>Cerrar</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={styles.searchScroll}
+              contentContainerStyle={styles.searchScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.searchChipsRow}>
+                <View style={styles.searchChip}>
+                  <Text style={styles.searchChipText}>Centro</Text>
+                </View>
+                <View style={styles.searchChip}>
+                  <Text style={styles.searchChipText}>Plazas</Text>
+                </View>
+                <View style={styles.searchChip}>
+                  <Text style={styles.searchChipText}>Publicos</Text>
+                </View>
+              </View>
+
+              {!searchQuery.trim() ? (
+                <View style={styles.recentSection}>
+                  <Text style={styles.searchSectionTitle}>Busquedas recientes</Text>
+                  {recentSearches.map((item) => (
+                    <Pressable
+                      key={item}
+                      style={styles.recentRow}
+                      onPress={() => setSearchQuery(item)}
+                    >
+                      <Text style={styles.recentRowIcon}>↺</Text>
+                      <Text style={styles.recentRowText}>{item}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+
+              <View style={styles.resultsSection}>
+                <Text style={styles.searchSectionTitle}>
+                  {searchQuery.trim() ? "Resultados" : "Estacionamientos cercanos"}
+                </Text>
+
+                {filteredPlaces.length > 0 ? (
+                  filteredPlaces.map((place) => (
+                    <Pressable
+                      key={place.id}
+                      style={styles.resultRow}
+                      onPress={() => focusPlaceFromSearch(place)}
+                    >
+                      <View
+                        style={[
+                          styles.resultDot,
+                          { backgroundColor: statusToColor(place.status) },
+                        ]}
+                      />
+                      <View style={styles.resultCopy}>
+                        <Text style={styles.resultTitle}>{place.name}</Text>
+                        <Text style={styles.resultSubtitle}>
+                          {statusToLabel(place.status)} . {getUpdatedLabel(place)}
+                        </Text>
+                      </View>
+                      <Text style={styles.resultAction}>Ver</Text>
+                    </Pressable>
+                  ))
+                ) : (
+                  <View style={styles.emptySearchState}>
+                    <Text style={styles.emptySearchTitle}>Sin coincidencias</Text>
+                    <Text style={styles.emptySearchBody}>
+                      Prueba con otra colonia, plaza o nombre de estacionamiento.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={isMenuOpen} animationType="fade" transparent onRequestClose={closeMenu}>
+        <View style={styles.menuBackdrop}>
+          <Pressable style={styles.menuDismissArea} onPress={closeMenu} />
+
+          <View style={styles.menuPanel}>
+            <View style={styles.menuProfileCard}>
+              <View style={styles.menuAvatar}>
+                <Text style={styles.menuAvatarText}>PP</Text>
+              </View>
+              <View style={styles.menuProfileCopy}>
+                <Text style={styles.menuProfileTitle}>Invitado</Text>
+                <Text style={styles.menuProfileSubtitle}>
+                  Inicia sesion para reportar, guardar lugares y construir reputacion comunitaria.
+                </Text>
+              </View>
+              <Pressable
+                style={styles.menuPrimaryBtn}
+                onPress={() => Alert.alert("Proximo paso", "Aqui conectaremos login con telefono y OTP.")}
+              >
+                <Text style={styles.menuPrimaryBtnText}>Entrar</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={styles.menuScroll}
+              contentContainerStyle={styles.menuScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.menuSection}>
+                <Text style={styles.menuSectionTitle}>Tu actividad</Text>
+                <Pressable
+                  style={styles.menuActionRow}
+                  onPress={() => Alert.alert("Proximo paso", "Aqui abriremos el historial completo de validaciones.")}
+                >
+                  <Text style={styles.menuActionIcon}>✓</Text>
+                  <View style={styles.menuActionCopy}>
+                    <Text style={styles.menuActionTitle}>Historial de reportes</Text>
+                    <Text style={styles.menuActionSubtitle}>Tus ultimas validaciones y estados enviados</Text>
+                  </View>
+                </Pressable>
+
+                <Pressable
+                  style={styles.menuActionRow}
+                  onPress={() => Alert.alert("Proximo paso", "Aqui abriremos lugares guardados y favoritos.")}
+                >
+                  <Text style={styles.menuActionIcon}>★</Text>
+                  <View style={styles.menuActionCopy}>
+                    <Text style={styles.menuActionTitle}>Lugares guardados</Text>
+                    <Text style={styles.menuActionSubtitle}>Acceso rapido a tus estacionamientos frecuentes</Text>
+                  </View>
+                </Pressable>
+              </View>
+
+              <View style={styles.menuSection}>
+                <Text style={styles.menuSectionTitle}>Guardados</Text>
+                {savedPlaces.length > 0 ? (
+                  savedPlaces.map((place) => (
+                    <Pressable
+                      key={place.id}
+                      style={styles.menuSavedRow}
+                      onPress={() => {
+                        closeMenu();
+                        focusPlaceFromSearch(place);
+                      }}
+                    >
+                      <View
+                        style={[
+                          styles.menuSavedDot,
+                          { backgroundColor: statusToColor(place.status) },
+                        ]}
+                      />
+                      <View style={styles.menuSavedCopy}>
+                        <Text style={styles.menuSavedTitle}>{place.name}</Text>
+                        <Text style={styles.menuSavedSubtitle}>{statusToLabel(place.status)}</Text>
+                      </View>
+                    </Pressable>
+                  ))
+                ) : (
+                  <Text style={styles.menuEmptyText}>Todavia no tienes lugares guardados.</Text>
+                )}
+              </View>
+
+              <View style={styles.menuSection}>
+                <Text style={styles.menuSectionTitle}>Reportes recientes</Text>
+                {recentReports.map((report) => (
+                  <View key={report.id} style={styles.menuReportRow}>
+                    <View
+                      style={[
+                        styles.menuReportStatus,
+                        { backgroundColor: `${statusToColor(report.status)}22` },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.menuReportStatusText,
+                          { color: statusToColor(report.status) },
+                        ]}
+                      >
+                        {statusToLabel(report.status)}
+                      </Text>
+                    </View>
+                    <View style={styles.menuReportCopy}>
+                      <Text style={styles.menuReportTitle}>{report.placeName}</Text>
+                      <Text style={styles.menuReportSubtitle}>{report.timeLabel}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.menuSection}>
+                <Text style={styles.menuSectionTitle}>Ajustes</Text>
+                <Pressable
+                  style={styles.menuActionRow}
+                  onPress={() => Alert.alert("Proximo paso", "Aqui abriremos idioma, privacidad y preferencias del mapa.")}
+                >
+                  <Text style={styles.menuActionIcon}>⚙</Text>
+                  <View style={styles.menuActionCopy}>
+                    <Text style={styles.menuActionTitle}>Preferencias</Text>
+                    <Text style={styles.menuActionSubtitle}>Mapa, privacidad, notificaciones e idioma</Text>
+                  </View>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -975,6 +1289,192 @@ const styles = StyleSheet.create({
   reportCancel: { marginTop: 12 },
   peekFooter: { marginTop: 14, backgroundColor: "#ffffff", borderRadius: 18, padding: 12, borderWidth: 1, borderColor: "#e2e8f0" },
   peekFooterText: { fontSize: 13, lineHeight: 18, color: "#475569", fontWeight: "500" },
+  searchModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.24)",
+    justifyContent: "flex-start",
+  },
+  searchModalDismissArea: { flex: 1 },
+  searchModalCard: {
+    position: "absolute",
+    top: 54,
+    left: 12,
+    right: 12,
+    maxHeight: "70%",
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 14,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  searchModalTopRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  searchScroll: { marginTop: 12 },
+  searchScrollContent: { paddingBottom: 14 },
+  searchInputWrap: {
+    flex: 1,
+    minHeight: 52,
+    backgroundColor: "#f8fafc",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+  },
+  searchInputIcon: { fontSize: 18, color: "#0f172a" },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 15,
+    color: "#0f172a",
+    fontWeight: "600",
+  },
+  searchCloseBtn: {
+    backgroundColor: "#e2e8f0",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  searchCloseBtnText: { fontSize: 13, color: "#0f172a", fontWeight: "800" },
+  searchChipsRow: { flexDirection: "row", gap: 8 },
+  searchChip: {
+    backgroundColor: "#ecfeff",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+  },
+  searchChipText: { fontSize: 12, color: "#155e75", fontWeight: "800" },
+  recentSection: { marginTop: 16 },
+  resultsSection: { marginTop: 16 },
+  searchSectionTitle: { fontSize: 13, color: "#64748b", fontWeight: "800", textTransform: "uppercase" },
+  recentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  recentRowIcon: { fontSize: 14, color: "#64748b", marginRight: 10 },
+  recentRowText: { fontSize: 15, color: "#0f172a", fontWeight: "600" },
+  resultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  resultDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
+  resultCopy: { flex: 1 },
+  resultTitle: { fontSize: 15, color: "#0f172a", fontWeight: "800" },
+  resultSubtitle: { marginTop: 3, fontSize: 12, color: "#64748b", fontWeight: "500" },
+  resultAction: { fontSize: 13, color: "#0891b2", fontWeight: "800" },
+  emptySearchState: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  emptySearchTitle: { fontSize: 16, color: "#0f172a", fontWeight: "800" },
+  emptySearchBody: { marginTop: 6, fontSize: 13, lineHeight: 18, color: "#64748b", textAlign: "center" },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.24)",
+    flexDirection: "row",
+  },
+  menuDismissArea: { flex: 0.18 },
+  menuPanel: {
+    flex: 0.82,
+    backgroundColor: "#ffffff",
+    paddingTop: 56,
+    paddingHorizontal: 14,
+    paddingBottom: 18,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    shadowOffset: { width: 8, height: 0 },
+    elevation: 12,
+  },
+  menuProfileCard: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 24,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  menuAvatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: "#0ea5e9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuAvatarText: { color: "#ffffff", fontSize: 18, fontWeight: "900" },
+  menuProfileCopy: { marginTop: 12 },
+  menuProfileTitle: { fontSize: 20, color: "#0f172a", fontWeight: "900" },
+  menuProfileSubtitle: { marginTop: 6, fontSize: 13, lineHeight: 18, color: "#475569", fontWeight: "500" },
+  menuPrimaryBtn: {
+    marginTop: 14,
+    backgroundColor: "#0f172a",
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  menuPrimaryBtnText: { color: "#ffffff", fontSize: 14, fontWeight: "800" },
+  menuScroll: { marginTop: 14 },
+  menuScrollContent: { paddingBottom: 24 },
+  menuSection: { marginTop: 12 },
+  menuSectionTitle: { fontSize: 13, color: "#64748b", fontWeight: "800", textTransform: "uppercase" },
+  menuActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    padding: 14,
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  menuActionIcon: { width: 28, fontSize: 18, color: "#0891b2", textAlign: "center" },
+  menuActionCopy: { flex: 1, marginLeft: 10 },
+  menuActionTitle: { fontSize: 15, color: "#0f172a", fontWeight: "800" },
+  menuActionSubtitle: { marginTop: 4, fontSize: 12, lineHeight: 17, color: "#64748b", fontWeight: "500" },
+  menuSavedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  menuSavedDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
+  menuSavedCopy: { flex: 1 },
+  menuSavedTitle: { fontSize: 15, color: "#0f172a", fontWeight: "800" },
+  menuSavedSubtitle: { marginTop: 3, fontSize: 12, color: "#64748b", fontWeight: "500" },
+  menuEmptyText: { marginTop: 10, fontSize: 13, lineHeight: 18, color: "#64748b" },
+  menuReportRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: "#f8fafc",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  menuReportStatus: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 10,
+  },
+  menuReportStatusText: { fontSize: 11, fontWeight: "900" },
+  menuReportCopy: { flex: 1 },
+  menuReportTitle: { fontSize: 14, color: "#0f172a", fontWeight: "800" },
+  menuReportSubtitle: { marginTop: 3, fontSize: 12, color: "#64748b", fontWeight: "500" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   title: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
   subtitle: { fontSize: 14, opacity: 0.7, textAlign: "center" },
