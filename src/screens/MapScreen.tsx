@@ -615,18 +615,21 @@ export default function MapScreen() {
 
           <View style={styles.reportOptions}>
             <Pressable
+              testID="report-status-available"
               style={[styles.reportOption, { backgroundColor: "#16a34a" }]}
               onPress={() => submitReport("available")}
             >
               <Text style={styles.reportOptionText}>Disponible</Text>
             </Pressable>
             <Pressable
+              testID="report-status-full"
               style={[styles.reportOption, { backgroundColor: "#ef4444" }]}
               onPress={() => submitReport("full")}
             >
               <Text style={styles.reportOptionText}>Lleno</Text>
             </Pressable>
             <Pressable
+              testID="report-status-closed"
               style={[styles.reportOption, { backgroundColor: "#475569" }]}
               onPress={() => submitReport("closed")}
             >
@@ -705,6 +708,7 @@ export default function MapScreen() {
               </Pressable>
 
               <Pressable
+                testID="validate-place-button"
                 style={[styles.primaryActionCard, styles.primaryActionSoft]}
                 onPress={() => onStartReport(selectedPlace)}
               >
