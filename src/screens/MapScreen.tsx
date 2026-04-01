@@ -21,6 +21,9 @@ import { fetchPlaces, type ParkingPlace, type ParkingStatus } from "../lib/place
 type PermissionState = "unknown" | "granted" | "denied";
 type LatLng = { latitude: number; longitude: number };
 type ReportStatus = Exclude<ParkingStatus, "unknown">;
+export type MapScreenProps = {
+  onOpenPrivacyLegal?: () => void;
+};
 
 const PILOT_REGION: Region = {
   latitude: 21.88234,
@@ -100,7 +103,7 @@ function distanceInMeters(from: LatLng, to: LatLng) {
   return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function MapScreen() {
+export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
   const mapRef = useRef<MapView>(null);
   const placeSheetRef = useRef<BottomSheet>(null);
   const ignoreNextMapPressRef = useRef(false);
@@ -293,6 +296,17 @@ export default function MapScreen() {
 
   const closeMenu = () => {
     setIsMenuOpen(false);
+  };
+
+  const openPrivacyLegal = () => {
+    closeMenu();
+
+    if (onOpenPrivacyLegal) {
+      onOpenPrivacyLegal();
+      return;
+    }
+
+    Alert.alert("Privacidad y legal", "Esta seccion se abrira desde la navegacion principal.");
   };
 
   const focusPlaceFromSearch = (place: ParkingPlace) => {
@@ -525,7 +539,7 @@ export default function MapScreen() {
       </MapView>
 
       <View style={styles.topBar}>
-        <Pressable style={styles.menuButton} onPress={openMenu}>
+        <Pressable testID="open-menu-button" style={styles.menuButton} onPress={openMenu}>
           <Text style={styles.menuButtonIcon}>≡</Text>
         </Pressable>
 
@@ -1007,13 +1021,14 @@ export default function MapScreen() {
               <View style={styles.menuSection}>
                 <Text style={styles.menuSectionTitle}>Ajustes</Text>
                 <Pressable
+                  testID="open-privacy-legal-button"
                   style={styles.menuActionRow}
-                  onPress={() => Alert.alert("Proximo paso", "Aqui abriremos idioma, privacidad y preferencias del mapa.")}
+                  onPress={openPrivacyLegal}
                 >
                   <Text style={styles.menuActionIcon}>⚙</Text>
                   <View style={styles.menuActionCopy}>
-                    <Text style={styles.menuActionTitle}>Preferencias</Text>
-                    <Text style={styles.menuActionSubtitle}>Mapa, privacidad, notificaciones e idioma</Text>
+                    <Text style={styles.menuActionTitle}>Privacidad y legal</Text>
+                    <Text style={styles.menuActionSubtitle}>Ubicacion, uso de datos y alcance de la demo</Text>
                   </View>
                 </Pressable>
               </View>

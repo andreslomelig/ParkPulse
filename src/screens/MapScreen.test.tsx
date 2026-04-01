@@ -92,6 +92,25 @@ describe("MapScreen", () => {
     });
   });
 
+  it("opens privacy and legal from the menu", async () => {
+    const onOpenPrivacyLegal = jest.fn();
+    const screen = render(<MapScreen onOpenPrivacyLegal={onOpenPrivacyLegal} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-menu-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Privacidad y legal")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-privacy-legal-button"));
+
+    expect(onOpenPrivacyLegal).toHaveBeenCalledTimes(1);
+  });
+
   it("opens report validation options from the place sheet", async () => {
     const screen = render(<MapScreen />);
 
