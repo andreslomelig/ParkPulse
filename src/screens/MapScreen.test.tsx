@@ -4,6 +4,7 @@ import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import * as Location from "expo-location";
 import MapScreen from "./MapScreen";
 import { fetchPlaces } from "../lib/places";
+import { fetchRecentReports, submitParkingReport } from "../lib/reports";
 
 jest.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: jest.fn(),
@@ -13,6 +14,11 @@ jest.mock("expo-location", () => ({
 
 jest.mock("../lib/places", () => ({
   fetchPlaces: jest.fn(),
+}));
+
+jest.mock("../lib/reports", () => ({
+  fetchRecentReports: jest.fn(),
+  submitParkingReport: jest.fn(),
 }));
 
 describe("MapScreen", () => {
@@ -40,6 +46,28 @@ describe("MapScreen", () => {
       },
     ]);
 
+    (fetchRecentReports as jest.Mock).mockResolvedValue([
+      {
+        id: "remote-report-1",
+        placeId: "fallback-2",
+        placeName: "Historial remoto",
+        status: "full",
+        createdAt: "2026-03-19T18:10:00.000Z",
+        expiresAt: "2026-03-19T18:40:00.000Z",
+        source: "remote",
+      },
+    ]);
+
+    (submitParkingReport as jest.Mock).mockResolvedValue({
+      id: "remote-report-2",
+      placeId: "fallback-1",
+      placeName: "Centro - Plaza Patria",
+      status: "available",
+      createdAt: "2026-03-19T18:12:00.000Z",
+      expiresAt: "2026-03-19T18:27:00.000Z",
+      source: "remote",
+    });
+
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
       status: "granted",
     });
@@ -63,7 +91,9 @@ describe("MapScreen", () => {
     fireEvent.press(screen.getByText("Buscar estacionamiento"));
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText("Buscar zona, plaza o estacionamiento")).toBeTruthy();
+      expect(
+        screen.getByPlaceholderText("Buscar zona, plaza o estacionamiento")
+      ).toBeTruthy();
     });
 
     fireEvent.changeText(
@@ -76,19 +106,20 @@ describe("MapScreen", () => {
     });
   });
 
-  it("opens the menu shell", async () => {
+  it("opens the menu shell and shows recent report history", async () => {
     const screen = render(<MapScreen />);
 
     await waitFor(() => {
       expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("≡"));
+    fireEvent.press(screen.getByTestId("open-menu-button"));
 
     await waitFor(() => {
       expect(screen.getByText("Invitado")).toBeTruthy();
       expect(screen.getByText("Historial de reportes")).toBeTruthy();
       expect(screen.getByText("Lugares guardados")).toBeTruthy();
+      expect(screen.getByText("Historial remoto")).toBeTruthy();
     });
   });
 
@@ -152,6 +183,13 @@ describe("MapScreen", () => {
       fireEvent.press(screen.getByTestId("report-status-available"));
     });
 
+    expect(submitParkingReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        placeId: "fallback-1",
+        placeName: "Centro - Plaza Patria",
+        status: "available",
+      })
+    );
     expect(Alert.alert).toHaveBeenCalledWith(
       "Reporte enviado",
       expect.stringContaining("Centro - Plaza Patria")

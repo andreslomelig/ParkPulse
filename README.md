@@ -12,12 +12,11 @@ anti-spam rules.
 -   Map-first pilot experience for Aguascalientes
 -   Parking place bottom sheet with richer place details
 -   Search overlay with local client-side filtering
--   Menu shell with saved places / recent reports / login placeholder
--   Local report flow with proximity validation (UI prototype)
--   Supabase read integration for seeded `places`
+-   Menu shell with recent report history and login placeholder
+-   Local report flow with proximity validation connected to Supabase
+-   Supabase read integration for live place status + `place_reports`
 
-Backend write flows, OTP auth, TTL enforcement, and server-side rate
-limits are still pending.
+OTP auth and stricter server-side rate limits are still pending.
 
 ------------------------------------------------------------------------
 
@@ -133,7 +132,8 @@ Use `.env.example` for placeholders only.
 - Run the SQL in [supabase/bootstrap.sql](supabase/bootstrap.sql) inside Supabase SQL Editor.
 - Full setup guide: [docs/supabase-setup.md](docs/supabase-setup.md)
 
-This creates the `places` table and seeds pilot markers for Aguascalientes.
+This creates `places`, `place_reports`, derived views for live place status,
+and pilot markers for Aguascalientes.
 
 ------------------------------------------------------------------------
 

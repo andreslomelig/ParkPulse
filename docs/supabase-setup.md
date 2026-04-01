@@ -5,8 +5,14 @@
 
 ## 2) Run SQL bootstrap
 - Open `SQL Editor`.
-- Paste and run:
+- Paste and run the full file:
   - `supabase/bootstrap.sql`
+
+This script now creates:
+- `places` as the base parking catalog
+- `place_reports` as the report history/event table
+- `place_live_status` as the frontend-friendly live status view
+- `place_report_feed` as the simple recent-history feed
 
 ## 3) Add app env vars
 Create `.env` in the project root:
@@ -26,4 +32,4 @@ npm run start
 ```
 
 If `.env` values are valid, markers load from Supabase.
-If not, app falls back to local demo markers.
+If not, app falls back to local demo markers and local report history.

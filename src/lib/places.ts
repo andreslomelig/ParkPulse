@@ -26,6 +26,9 @@ type RawPlace = {
   last_reported_at?: string | null;
 };
 
+const PLACE_SELECT =
+  "id, name, latitude, longitude, current_status, updated_at, last_reported_at";
+
 const fallbackPlaces: ParkingPlace[] = [
   {
     id: "fallback-1",
@@ -93,22 +96,32 @@ function mapRawPlace(place: RawPlace): ParkingPlace | null {
   };
 }
 
-export async function fetchPlaces(): Promise<ParkingPlace[]> {
-  if (!supabase) return fallbackPlaces;
+async function readPlacesFrom(
+  sourceName: "place_live_status" | "places"
+): Promise<RawPlace[] | null> {
+  if (!supabase) return null;
 
   const { data, error } = await supabase
-    .from("places")
-    .select(
-      "id, name, latitude, longitude, current_status, updated_at"
-    )
+    .from(sourceName)
+    .select(PLACE_SELECT)
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("fetchPlaces error:", error.message);
-    return fallbackPlaces;
+    console.error(`fetchPlaces ${sourceName} error:`, error.message);
+    return null;
   }
 
-  const places = (data as RawPlace[] | null)
+  return (data as RawPlace[] | null) ?? null;
+}
+
+export async function fetchPlaces(): Promise<ParkingPlace[]> {
+  if (!supabase) return fallbackPlaces;
+
+  const rows =
+    (await readPlacesFrom("place_live_status")) ??
+    (await readPlacesFrom("places"));
+
+  const places = rows
     ?.map(mapRawPlace)
     .filter((item): item is ParkingPlace => item !== null);
 

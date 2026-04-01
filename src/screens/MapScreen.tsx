@@ -17,6 +17,11 @@ import MapView, { Marker, Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchPlaces, type ParkingPlace, type ParkingStatus } from "../lib/places";
+import {
+  fetchRecentReports,
+  submitParkingReport,
+  type ParkingReport,
+} from "../lib/reports";
 
 type PermissionState = "unknown" | "granted" | "denied";
 type LatLng = { latitude: number; longitude: number };
@@ -33,6 +38,23 @@ const PILOT_REGION: Region = {
 };
 
 const REPORT_RADIUS_METERS = 200;
+const RECENT_REPORTS_LIMIT = 5;
+
+function getElapsedLabel(isoDate: string | null) {
+  if (!isoDate) return null;
+
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "hace un momento";
+
+  const mins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
+  if (mins < 60) return `hace ${mins} min`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `hace ${hours} h`;
+
+  const days = Math.floor(hours / 24);
+  return `hace ${days} d`;
+}
 
 function statusToLabel(status: ParkingStatus) {
   switch (status) {
@@ -61,18 +83,8 @@ function statusToColor(status: ParkingStatus) {
 }
 
 function getUpdatedLabel(place: ParkingPlace) {
-  if (!place.updatedAt) return "Sin actualizacion reciente";
-  const diffMs = Date.now() - new Date(place.updatedAt).getTime();
-  if (!Number.isFinite(diffMs) || diffMs < 0) return "Actualizado recientemente";
-
-  const mins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
-  if (mins < 60) return `Actualizado hace ${mins} min`;
-
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `Actualizado hace ${hours} h`;
-
-  const days = Math.floor(hours / 24);
-  return `Actualizado hace ${days} d`;
+  const elapsedLabel = getElapsedLabel(place.updatedAt);
+  return elapsedLabel ? `Actualizado ${elapsedLabel}` : "Sin actualizacion reciente";
 }
 
 function getStatusSupportLabel(status: ParkingStatus) {
@@ -127,22 +139,7 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
     "San Marcos",
   ]);
   const [savedPlaceIds] = useState<string[]>(["fallback-1", "fallback-2"]);
-  const [recentReports] = useState<
-    { id: string; placeName: string; status: ParkingStatus; timeLabel: string }[]
-  >([
-    {
-      id: "report-1",
-      placeName: "Centro - Plaza Patria",
-      status: "available",
-      timeLabel: "Hace 8 min",
-    },
-    {
-      id: "report-2",
-      placeName: "Zona Feria - Estadio",
-      status: "full",
-      timeLabel: "Hace 21 min",
-    },
-  ]);
+  const [recentReports, setRecentReports] = useState<ParkingReport[]>([]);
   const placeSheetSnapPoints = useMemo(() => ["32%", "76%"], []);
   const isPlaceSheetExpanded = placeSheetIndex === 1;
 
@@ -151,9 +148,13 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
 
     const load = async () => {
       setIsLoadingPlaces(true);
-      const nextPlaces = await fetchPlaces();
+      const [nextPlaces, nextReports] = await Promise.all([
+        fetchPlaces(),
+        fetchRecentReports(RECENT_REPORTS_LIMIT),
+      ]);
       if (active) {
         setPlaces(nextPlaces);
+        setRecentReports(nextReports);
         setSelectedPlaceId(nextPlaces[0]?.id ?? null);
         setPlaceSheetIndex(0);
         setIsLoadingPlaces(false);
@@ -422,7 +423,16 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
         return;
       }
 
-      const updatedAt = new Date().toISOString();
+      const createdReport = await submitParkingReport({
+        placeId: reportingPlace.id,
+        placeName: reportingPlace.name,
+        status,
+        reportedLatitude: currentCoord.latitude,
+        reportedLongitude: currentCoord.longitude,
+        reportedDistanceMeters: Math.round(distance),
+      });
+
+      const updatedAt = createdReport.createdAt;
 
       setPlaces((prev) =>
         prev.map((place) =>
@@ -433,6 +443,12 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
                 updatedAt,
               }
             : place
+        )
+      );
+      setRecentReports((prev) =>
+        [createdReport, ...prev.filter((report) => report.id !== createdReport.id)].slice(
+          0,
+          RECENT_REPORTS_LIMIT
         )
       );
 
@@ -993,29 +1009,35 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
 
               <View style={styles.menuSection}>
                 <Text style={styles.menuSectionTitle}>Reportes recientes</Text>
-                {recentReports.map((report) => (
-                  <View key={report.id} style={styles.menuReportRow}>
-                    <View
-                      style={[
-                        styles.menuReportStatus,
-                        { backgroundColor: `${statusToColor(report.status)}22` },
-                      ]}
-                    >
-                      <Text
+                {recentReports.length > 0 ? (
+                  recentReports.map((report) => (
+                    <View key={report.id} style={styles.menuReportRow}>
+                      <View
                         style={[
-                          styles.menuReportStatusText,
-                          { color: statusToColor(report.status) },
+                          styles.menuReportStatus,
+                          { backgroundColor: `${statusToColor(report.status)}22` },
                         ]}
                       >
-                        {statusToLabel(report.status)}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.menuReportStatusText,
+                            { color: statusToColor(report.status) },
+                          ]}
+                        >
+                          {statusToLabel(report.status)}
+                        </Text>
+                      </View>
+                      <View style={styles.menuReportCopy}>
+                        <Text style={styles.menuReportTitle}>{report.placeName}</Text>
+                        <Text style={styles.menuReportSubtitle}>
+                          {getElapsedLabel(report.createdAt) ?? "Reciente"}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.menuReportCopy}>
-                      <Text style={styles.menuReportTitle}>{report.placeName}</Text>
-                      <Text style={styles.menuReportSubtitle}>{report.timeLabel}</Text>
-                    </View>
-                  </View>
-                ))}
+                  ))
+                ) : (
+                  <Text style={styles.menuEmptyText}>Aun no hay reportes recientes.</Text>
+                )}
               </View>
 
               <View style={styles.menuSection}>
