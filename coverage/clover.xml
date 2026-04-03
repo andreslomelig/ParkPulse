@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1775257382892" clover="3.2.0">
-  <project timestamp="1775257382892" name="All files">
-    <metrics statements="299" coveredstatements="299" conditionals="376" coveredconditionals="376" methods="52" coveredmethods="52" elements="727" coveredelements="727" complexity="0" loc="299" ncloc="299" packages="1" files="8" classes="8"/>
+<coverage generated="1775258018354" clover="3.2.0">
+  <project timestamp="1775258018354" name="All files">
+    <metrics statements="284" coveredstatements="284" conditionals="362" coveredconditionals="362" methods="50" coveredmethods="50" elements="696" coveredelements="696" complexity="0" loc="284" ncloc="284" packages="1" files="8" classes="8"/>
     <file name="communitySession.ts" path="C:\Users\adria\Documents\UP\Semestre 10\Ing Proyectos Tecnologicos\ParkPulse\src\lib\communitySession.ts">
       <metrics statements="8" coveredstatements="8" conditionals="4" coveredconditionals="4" methods="3" coveredmethods="3"/>
       <line num="1" count="1" type="stmt"/>
@@ -15,15 +15,15 @@
     </file>
     <file name="parkingPresentation.ts" path="C:\Users\adria\Documents\UP\Semestre 10\Ing Proyectos Tecnologicos\ParkPulse\src\lib\parkingPresentation.ts">
       <metrics statements="30" coveredstatements="30" conditionals="44" coveredconditionals="44" methods="5" coveredmethods="5"/>
-      <line num="4" count="61" type="stmt"/>
-      <line num="5" count="61" type="cond" truecount="2" falsecount="0"/>
-      <line num="12" count="37" type="cond" truecount="2" falsecount="0"/>
-      <line num="14" count="36" type="cond" truecount="2" falsecount="0"/>
-      <line num="15" count="36" type="stmt"/>
-      <line num="16" count="36" type="stmt"/>
-      <line num="18" count="36" type="cond" truecount="4" falsecount="0"/>
-      <line num="19" count="30" type="cond" truecount="2" falsecount="0"/>
-      <line num="20" count="29" type="stmt"/>
+      <line num="4" count="59" type="stmt"/>
+      <line num="5" count="59" type="cond" truecount="2" falsecount="0"/>
+      <line num="12" count="36" type="cond" truecount="2" falsecount="0"/>
+      <line num="14" count="35" type="cond" truecount="2" falsecount="0"/>
+      <line num="15" count="35" type="stmt"/>
+      <line num="16" count="35" type="stmt"/>
+      <line num="18" count="35" type="cond" truecount="4" falsecount="0"/>
+      <line num="19" count="29" type="cond" truecount="2" falsecount="0"/>
+      <line num="20" count="28" type="stmt"/>
       <line num="23" count="6" type="cond" truecount="2" falsecount="0"/>
       <line num="24" count="5" type="cond" truecount="2" falsecount="0"/>
       <line num="26" count="4" type="cond" truecount="2" falsecount="0"/>
@@ -31,42 +31,42 @@
       <line num="30" count="2" type="cond" truecount="2" falsecount="0"/>
       <line num="31" count="1" type="cond" truecount="2" falsecount="0"/>
       <line num="34" count="1" type="cond" truecount="2" falsecount="0"/>
-      <line num="41" count="33" type="stmt"/>
-      <line num="42" count="33" type="stmt"/>
-      <line num="44" count="33" type="cond" truecount="4" falsecount="0"/>
-      <line num="45" count="30" type="cond" truecount="2" falsecount="0"/>
-      <line num="46" count="29" type="stmt"/>
+      <line num="41" count="32" type="stmt"/>
+      <line num="42" count="32" type="stmt"/>
+      <line num="44" count="32" type="cond" truecount="4" falsecount="0"/>
+      <line num="45" count="29" type="cond" truecount="2" falsecount="0"/>
+      <line num="46" count="28" type="stmt"/>
       <line num="49" count="3" type="cond" truecount="2" falsecount="0"/>
       <line num="50" count="2" type="cond" truecount="2" falsecount="0"/>
       <line num="51" count="1" type="stmt"/>
-      <line num="58" count="30" type="cond" truecount="4" falsecount="0"/>
+      <line num="58" count="29" type="cond" truecount="4" falsecount="0"/>
       <line num="59" count="4" type="stmt"/>
-      <line num="62" count="26" type="stmt"/>
-      <line num="69" count="24" type="cond" truecount="2" falsecount="0"/>
-      <line num="70" count="21" type="cond" truecount="2" falsecount="0"/>
-      <line num="71" count="20" type="stmt"/>
+      <line num="62" count="25" type="stmt"/>
+      <line num="69" count="23" type="cond" truecount="2" falsecount="0"/>
+      <line num="70" count="20" type="cond" truecount="2" falsecount="0"/>
+      <line num="71" count="19" type="stmt"/>
     </file>
     <file name="parkingShared.ts" path="C:\Users\adria\Documents\UP\Semestre 10\Ing Proyectos Tecnologicos\ParkPulse\src\lib\parkingShared.ts">
       <metrics statements="41" coveredstatements="41" conditionals="83" coveredconditionals="83" methods="11" coveredmethods="11"/>
-      <line num="58" count="236" type="cond" truecount="2" falsecount="0"/>
-      <line num="60" count="102" type="stmt"/>
-      <line num="61" count="102" type="cond" truecount="2" falsecount="0"/>
-      <line num="65" count="200" type="cond" truecount="4" falsecount="0"/>
-      <line num="66" count="152" type="cond" truecount="4" falsecount="0"/>
+      <line num="58" count="230" type="cond" truecount="2" falsecount="0"/>
+      <line num="60" count="98" type="stmt"/>
+      <line num="61" count="98" type="cond" truecount="2" falsecount="0"/>
+      <line num="65" count="199" type="cond" truecount="4" falsecount="0"/>
+      <line num="66" count="151" type="cond" truecount="4" falsecount="0"/>
       <line num="67" count="7" type="stmt"/>
       <line num="68" count="7" type="cond" truecount="2" falsecount="0"/>
-      <line num="71" count="146" type="stmt"/>
-      <line num="75" count="87" type="stmt"/>
-      <line num="76" count="87" type="cond" truecount="2" falsecount="0"/>
+      <line num="71" count="145" type="stmt"/>
+      <line num="75" count="86" type="stmt"/>
+      <line num="76" count="86" type="cond" truecount="2" falsecount="0"/>
       <line num="78" count="8" type="stmt"/>
-      <line num="84" count="36" type="stmt"/>
-      <line num="85" count="36" type="cond" truecount="2" falsecount="0"/>
-      <line num="87" count="34" type="cond" truecount="4" falsecount="0"/>
+      <line num="84" count="35" type="stmt"/>
+      <line num="85" count="35" type="cond" truecount="2" falsecount="0"/>
+      <line num="87" count="33" type="cond" truecount="4" falsecount="0"/>
       <line num="88" count="18" type="cond" truecount="4" falsecount="0"/>
       <line num="89" count="13" type="cond" truecount="4" falsecount="0"/>
       <line num="90" count="5" type="stmt"/>
-      <line num="96" count="22" type="stmt"/>
-      <line num="97" count="22" type="cond" truecount="2" falsecount="0"/>
+      <line num="96" count="21" type="stmt"/>
+      <line num="97" count="21" type="cond" truecount="2" falsecount="0"/>
       <line num="103" count="20" type="stmt"/>
       <line num="104" count="20" type="cond" truecount="4" falsecount="0"/>
       <line num="105" count="19" type="cond" truecount="4" falsecount="0"/>
@@ -87,8 +87,8 @@
       <line num="139" count="22" type="cond" truecount="4" falsecount="0"/>
       <line num="141" count="14" type="cond" truecount="4" falsecount="0"/>
       <line num="142" count="10" type="stmt"/>
-      <line num="146" count="36" type="cond" truecount="4" falsecount="0"/>
-      <line num="147" count="33" type="stmt"/>
+      <line num="146" count="21" type="cond" truecount="4" falsecount="0"/>
+      <line num="147" count="18" type="stmt"/>
     </file>
     <file name="places.ts" path="C:\Users\adria\Documents\UP\Semestre 10\Ing Proyectos Tecnologicos\ParkPulse\src\lib\places.ts">
       <metrics statements="83" coveredstatements="83" conditionals="99" coveredconditionals="99" methods="11" coveredmethods="11"/>
@@ -241,78 +241,63 @@
       <line num="108" count="3" type="stmt"/>
     </file>
     <file name="reports.ts" path="C:\Users\adria\Documents\UP\Semestre 10\Ing Proyectos Tecnologicos\ParkPulse\src\lib\reports.ts">
-      <metrics statements="71" coveredstatements="71" conditionals="73" coveredconditionals="73" methods="13" coveredmethods="13"/>
+      <metrics statements="56" coveredstatements="56" conditionals="59" coveredconditionals="59" methods="11" coveredmethods="11"/>
       <line num="46" count="1" type="stmt"/>
       <line num="59" count="1" type="stmt"/>
       <line num="71" count="1" type="stmt"/>
       <line num="101" count="8" type="stmt"/>
-      <line num="105" count="7" type="stmt"/>
-      <line num="114" count="9" type="stmt"/>
-      <line num="115" count="9" type="stmt"/>
-      <line num="116" count="9" type="stmt"/>
-      <line num="117" count="9" type="stmt"/>
-      <line num="119" count="9" type="cond" truecount="4" falsecount="0"/>
-      <line num="120" count="1" type="stmt"/>
-      <line num="123" count="8" type="cond" truecount="2" falsecount="0"/>
-      <line num="124" count="1" type="stmt"/>
-      <line num="127" count="7" type="cond" truecount="5" falsecount="0"/>
-      <line num="128" count="1" type="stmt"/>
-      <line num="131" count="6" type="stmt"/>
-      <line num="146" count="11" type="cond" truecount="2" falsecount="0"/>
-      <line num="147" count="11" type="cond" truecount="2" falsecount="0"/>
-      <line num="149" count="8" type="cond" truecount="2" falsecount="0"/>
-      <line num="151" count="8" type="stmt"/>
-      <line num="167" count="8" type="stmt"/>
-      <line num="168" count="8" type="cond" truecount="2" falsecount="0"/>
-      <line num="170" count="7" type="stmt"/>
-      <line num="176" count="7" type="cond" truecount="2" falsecount="0"/>
-      <line num="177" count="4" type="cond" truecount="2" falsecount="0"/>
-      <line num="178" count="1" type="stmt"/>
-      <line num="179" count="1" type="stmt"/>
-      <line num="182" count="3" type="stmt"/>
-      <line num="188" count="3" type="cond" truecount="2" falsecount="0"/>
-      <line num="189" count="1" type="stmt"/>
-      <line num="193" count="1" type="stmt"/>
-      <line num="196" count="2" type="stmt"/>
-      <line num="199" count="1" type="stmt"/>
-      <line num="203" count="3" type="stmt"/>
-      <line num="206" count="3" type="stmt"/>
-      <line num="214" count="11" type="stmt"/>
-      <line num="215" count="11" type="cond" truecount="2" falsecount="0"/>
-      <line num="217" count="10" type="stmt"/>
-      <line num="218" count="10" type="cond" truecount="2" falsecount="0"/>
-      <line num="219" count="1" type="stmt"/>
-      <line num="220" count="2" type="stmt"/>
-      <line num="224" count="9" type="stmt"/>
-      <line num="229" count="9" type="cond" truecount="2" falsecount="0"/>
-      <line num="230" count="7" type="cond" truecount="2" falsecount="0"/>
-      <line num="231" count="1" type="stmt"/>
-      <line num="232" count="1" type="stmt"/>
-      <line num="235" count="6" type="stmt"/>
-      <line num="242" count="6" type="cond" truecount="2" falsecount="0"/>
-      <line num="243" count="4" type="cond" truecount="2" falsecount="0"/>
-      <line num="244" count="1" type="stmt"/>
-      <line num="248" count="1" type="stmt"/>
-      <line num="251" count="3" type="stmt"/>
-      <line num="258" count="3" type="cond" truecount="2" falsecount="0"/>
-      <line num="259" count="1" type="stmt"/>
-      <line num="263" count="1" type="stmt"/>
-      <line num="266" count="2" type="stmt"/>
-      <line num="269" count="1" type="stmt"/>
-      <line num="273" count="2" type="stmt"/>
-      <line num="276" count="1" type="stmt"/>
-      <line num="280" count="2" type="stmt"/>
-      <line num="283" count="1" type="stmt"/>
-      <line num="290" count="5" type="stmt"/>
-      <line num="291" count="5" type="stmt"/>
-      <line num="293" count="5" type="stmt"/>
-      <line num="304" count="5" type="cond" truecount="2" falsecount="0"/>
-      <line num="305" count="1" type="stmt"/>
-      <line num="308" count="4" type="cond" truecount="2" falsecount="0"/>
-      <line num="309" count="4" type="cond" truecount="2" falsecount="0"/>
-      <line num="311" count="4" type="cond" truecount="2" falsecount="0"/>
-      <line num="312" count="2" type="stmt"/>
-      <line num="315" count="2" type="stmt"/>
+      <line num="107" count="9" type="stmt"/>
+      <line num="108" count="9" type="stmt"/>
+      <line num="109" count="9" type="stmt"/>
+      <line num="110" count="9" type="stmt"/>
+      <line num="112" count="9" type="cond" truecount="4" falsecount="0"/>
+      <line num="113" count="1" type="stmt"/>
+      <line num="116" count="8" type="cond" truecount="2" falsecount="0"/>
+      <line num="117" count="1" type="stmt"/>
+      <line num="120" count="7" type="cond" truecount="5" falsecount="0"/>
+      <line num="121" count="1" type="stmt"/>
+      <line num="124" count="6" type="stmt"/>
+      <line num="139" count="9" type="stmt"/>
+      <line num="142" count="6" type="stmt"/>
+      <line num="153" count="13" type="stmt"/>
+      <line num="154" count="19" type="stmt"/>
+      <line num="155" count="19" type="cond" truecount="2" falsecount="0"/>
+      <line num="157" count="19" type="stmt"/>
+      <line num="162" count="13" type="stmt"/>
+      <line num="164" count="13" type="cond" truecount="2" falsecount="0"/>
+      <line num="165" count="8" type="cond" truecount="2" falsecount="0"/>
+      <line num="166" count="2" type="stmt"/>
+      <line num="167" count="2" type="stmt"/>
+      <line num="170" count="6" type="stmt"/>
+      <line num="171" count="6" type="cond" truecount="2" falsecount="0"/>
+      <line num="172" count="2" type="stmt"/>
+      <line num="173" count="2" type="stmt"/>
+      <line num="176" count="4" type="cond" truecount="2" falsecount="0"/>
+      <line num="179" count="5" type="cond" truecount="2" falsecount="0"/>
+      <line num="183" count="10" type="cond" truecount="2" falsecount="0"/>
+      <line num="184" count="10" type="cond" truecount="2" falsecount="0"/>
+      <line num="186" count="7" type="cond" truecount="2" falsecount="0"/>
+      <line num="188" count="7" type="stmt"/>
+      <line num="204" count="8" type="stmt"/>
+      <line num="205" count="8" type="cond" truecount="2" falsecount="0"/>
+      <line num="207" count="7" type="stmt"/>
+      <line num="220" count="8" type="stmt"/>
+      <line num="221" count="8" type="cond" truecount="2" falsecount="0"/>
+      <line num="223" count="7" type="stmt"/>
+      <line num="224" count="7" type="cond" truecount="2" falsecount="0"/>
+      <line num="225" count="1" type="stmt"/>
+      <line num="226" count="2" type="stmt"/>
+      <line num="230" count="6" type="stmt"/>
+      <line num="242" count="5" type="stmt"/>
+      <line num="243" count="5" type="stmt"/>
+      <line num="245" count="5" type="stmt"/>
+      <line num="256" count="5" type="cond" truecount="2" falsecount="0"/>
+      <line num="257" count="1" type="stmt"/>
+      <line num="260" count="4" type="cond" truecount="2" falsecount="0"/>
+      <line num="261" count="4" type="cond" truecount="2" falsecount="0"/>
+      <line num="263" count="4" type="cond" truecount="2" falsecount="0"/>
+      <line num="264" count="2" type="stmt"/>
+      <line num="267" count="2" type="stmt"/>
     </file>
     <file name="supabase.ts" path="C:\Users\adria\Documents\UP\Semestre 10\Ing Proyectos Tecnologicos\ParkPulse\src\lib\supabase.ts">
       <metrics statements="8" coveredstatements="8" conditionals="6" coveredconditionals="6" methods="2" coveredmethods="2"/>

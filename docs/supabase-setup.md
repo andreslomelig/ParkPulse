@@ -19,8 +19,10 @@ This script now creates:
 It also creates these RPC endpoints:
 - `create_place(...)`
 - `create_place_report(...)`
-- `get_place_report_history(place_id, limit)`
 - `upsert_place_rating(place_id, rating, comment, session_id)`
+
+Optional SQL helper:
+- `get_place_report_history(place_id, limit)`
 
 ## 3) Add app env vars
 Create `.env` in the project root:
@@ -43,7 +45,7 @@ If `.env` values are valid:
 - markers load from `place_live_status`
 - new parking places are persisted through `create_place`
 - reports are persisted through `create_place_report`
-- place history loads through `get_place_report_history`
+- place history loads from `place_report_feed`
 
 If `.env` values are missing, the app falls back to local demo reads only. Persistent writes require Supabase to be configured.
 

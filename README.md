@@ -140,7 +140,8 @@ This creates:
 - `place_reports` for availability history with timestamps and reporter identity
 - `place_ratings` for community ratings per parking place
 - `place_live_status` and `place_report_feed` for frontend-friendly reads
-- RPC endpoints: `create_place`, `create_place_report`, `get_place_report_history`, `upsert_place_rating`
+- RPC endpoints: `create_place`, `create_place_report`, `upsert_place_rating`
+- Optional SQL helper: `get_place_report_history(place_id, limit)`
 
 ------------------------------------------------------------------------
 
