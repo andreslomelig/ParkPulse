@@ -895,6 +895,24 @@ $$;
 
 grant execute on function public.get_place_report_history(uuid, integer) to anon, authenticated;
 
+create or replace function public.get_place_report_history(
+  input_limit integer,
+  input_place_id uuid
+)
+returns setof public.place_report_feed
+language sql
+security invoker
+set search_path = public
+as $$
+  select *
+  from public.get_place_report_history(
+    input_place_id => input_place_id,
+    input_limit => input_limit
+  );
+$$;
+
+grant execute on function public.get_place_report_history(integer, uuid) to anon, authenticated;
+
 insert into public.places (
   name,
   latitude,
@@ -952,3 +970,5 @@ where not exists (
     and place.latitude = seed.latitude
     and place.longitude = seed.longitude
 );
+
+notify pgrst, 'reload schema';

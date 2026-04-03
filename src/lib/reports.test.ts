@@ -128,6 +128,106 @@ describe("reports", () => {
     await expect(fetchRecentReports(5)).resolves.toEqual([]);
   });
 
+  it("retries recent reports with a legacy select when reporter_display_name is missing", async () => {
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          order: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue(
+              selectClause.includes("reporter_display_name")
+                ? {
+                    data: null,
+                    error: {
+                      message:
+                        "column place_report_feed.reporter_display_name does not exist",
+                    },
+                  }
+                : {
+                    data: [
+                      {
+                        id: "legacy-report-1",
+                        place_id: "place-1",
+                        place_name: "Lugar",
+                        status: "full",
+                        created_at: "2026-03-19T18:00:00.000Z",
+                      },
+                    ],
+                    error: null,
+                  }
+            ),
+          }),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchRecentReports(5)).resolves.toEqual([
+      expect.objectContaining({
+        id: "legacy-report-1",
+        placeName: "Lugar",
+      }),
+    ]);
+  });
+
+  it("returns an empty array when the legacy recent-reports query resolves with null data", async () => {
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          order: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue(
+              selectClause.includes("reporter_display_name")
+                ? {
+                    data: null,
+                    error: {
+                      message:
+                        "column place_report_feed.reporter_display_name does not exist",
+                    },
+                  }
+                : {
+                    data: null,
+                    error: null,
+                  }
+            ),
+          }),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchRecentReports(5)).resolves.toEqual([]);
+  });
+
+  it("returns an empty array when the legacy recent-reports select also fails", async () => {
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          order: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue(
+              selectClause.includes("reporter_display_name")
+                ? {
+                    data: null,
+                    error: {
+                      message:
+                        "column place_report_feed.reporter_display_name does not exist",
+                    },
+                  }
+                : {
+                    data: null,
+                    error: { message: "legacy feed failed" },
+                  }
+            ),
+          }),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchRecentReports(5)).resolves.toEqual([]);
+  });
+
   it("maps partial report rows with safe defaults", async () => {
     const client = {
       from: jest.fn(() => ({
@@ -223,6 +323,230 @@ describe("reports", () => {
         data: null,
         error: { message: "rpc failed" },
       }),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchReportsForPlace("place-1", 10)).resolves.toEqual([]);
+  });
+
+  it("falls back to a direct feed query when the history rpc is stale in schema cache", async () => {
+    const client = {
+      rpc: jest.fn().mockResolvedValue({
+        data: null,
+        error: {
+          message:
+            "Could not find the function public.get_place_report_history(input_limit, input_place_id) in the schema cache",
+        },
+      }),
+      from: jest.fn(() => ({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            order: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: "direct-history-1",
+                    place_id: "place-1",
+                    place_name: "Lugar",
+                    status: "available",
+                    created_at: "2026-03-19T18:01:00.000Z",
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchReportsForPlace("place-1", 10)).resolves.toEqual([
+      expect.objectContaining({
+        id: "direct-history-1",
+        status: "available",
+      }),
+    ]);
+  });
+
+  it("returns an empty history array when the direct fallback resolves with null data", async () => {
+    const client = {
+      rpc: jest.fn().mockResolvedValue({
+        data: null,
+        error: {
+          message:
+            "Could not find the function public.get_place_report_history(input_limit, input_place_id) in the schema cache",
+        },
+      }),
+      from: jest.fn(() => ({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            order: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue({
+                data: null,
+                error: null,
+              }),
+            }),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchReportsForPlace("place-1", 10)).resolves.toEqual([]);
+  });
+
+  it("uses a legacy direct feed select when the fallback query is also stale", async () => {
+    const client = {
+      rpc: jest.fn().mockResolvedValue({
+        data: null,
+        error: {
+          message:
+            "Could not find the function public.get_place_report_history(input_limit, input_place_id) in the schema cache",
+        },
+      }),
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          eq: jest.fn(() => ({
+            order: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue(
+                selectClause.includes("reporter_display_name")
+                  ? {
+                      data: null,
+                      error: {
+                        message:
+                          "column place_report_feed.reporter_display_name does not exist",
+                      },
+                    }
+                  : {
+                      data: [
+                        {
+                          id: "legacy-direct-history-1",
+                          place_id: "place-1",
+                          place_name: "Lugar",
+                          status: "closed",
+                          created_at: "2026-03-19T18:01:00.000Z",
+                        },
+                      ],
+                      error: null,
+                    }
+              ),
+            }),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchReportsForPlace("place-1", 10)).resolves.toEqual([
+      expect.objectContaining({
+        id: "legacy-direct-history-1",
+        status: "closed",
+      }),
+    ]);
+  });
+
+  it("returns an empty history array when the legacy direct fallback resolves with null data", async () => {
+    const client = {
+      rpc: jest.fn().mockResolvedValue({
+        data: null,
+        error: {
+          message:
+            "Could not find the function public.get_place_report_history(input_limit, input_place_id) in the schema cache",
+        },
+      }),
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          eq: jest.fn(() => ({
+            order: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue(
+                selectClause.includes("reporter_display_name")
+                  ? {
+                      data: null,
+                      error: {
+                        message:
+                          "column place_report_feed.reporter_display_name does not exist",
+                      },
+                    }
+                  : {
+                      data: null,
+                      error: null,
+                    }
+              ),
+            }),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchReportsForPlace("place-1", 10)).resolves.toEqual([]);
+  });
+
+  it("returns an empty history collection when both direct fallbacks fail", async () => {
+    const client = {
+      rpc: jest.fn().mockResolvedValue({
+        data: null,
+        error: {
+          message:
+            "Could not find the function public.get_place_report_history(input_limit, input_place_id) in the schema cache",
+        },
+      }),
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          eq: jest.fn(() => ({
+            order: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue(
+                selectClause.includes("reporter_display_name")
+                  ? {
+                      data: null,
+                      error: {
+                        message:
+                          "column place_report_feed.reporter_display_name does not exist",
+                      },
+                    }
+                  : {
+                      data: null,
+                      error: { message: "legacy direct failed" },
+                    }
+              ),
+            }),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchReportsForPlace("place-1", 10)).resolves.toEqual([]);
+  });
+
+  it("returns an empty history collection when the direct fallback fails for another reason", async () => {
+    const client = {
+      rpc: jest.fn().mockResolvedValue({
+        data: null,
+        error: {
+          message:
+            "Could not find the function public.get_place_report_history(input_limit, input_place_id) in the schema cache",
+        },
+      }),
+      from: jest.fn(() => ({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            order: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue({
+                data: null,
+                error: { message: "permission denied" },
+              }),
+            }),
+          })),
+        })),
+      })),
     };
 
     (getSupabaseClient as jest.Mock).mockReturnValue(client);

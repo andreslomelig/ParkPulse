@@ -93,6 +93,18 @@ const LIVE_PLACE_SELECT = [
   "rating_count",
 ].join(", ");
 
+const LEGACY_LIVE_PLACE_SELECT = [
+  "id",
+  "name",
+  "latitude",
+  "longitude",
+  "current_status",
+  "updated_at",
+  "last_reported_at",
+  "active_report_count",
+  "total_report_count",
+].join(", ");
+
 const BASE_PLACE_SELECT = [
   "id",
   "name",
@@ -109,6 +121,15 @@ const BASE_PLACE_SELECT = [
   "capacity_max",
   "capacity_confidence",
   "access_type",
+  "current_status",
+  "updated_at",
+].join(", ");
+
+const LEGACY_BASE_PLACE_SELECT = [
+  "id",
+  "name",
+  "latitude",
+  "longitude",
   "current_status",
   "updated_at",
 ].join(", ");
@@ -190,6 +211,10 @@ const fallbackPlaces: ParkingPlace[] = [
     source: "fallback",
   },
 ];
+
+function isMissingSchemaFieldError(message: string) {
+  return message.includes("does not exist");
+}
 
 export function normalizeCreateParkingPlaceInput(
   input: CreateParkingPlaceInput
@@ -286,8 +311,25 @@ async function readPlacesFromView() {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("fetchPlaces place_live_status error:", error.message);
-    return null;
+    if (!isMissingSchemaFieldError(error.message)) {
+      console.error("fetchPlaces place_live_status error:", error.message);
+      return null;
+    }
+
+    const legacyResult = await client
+      .from("place_live_status")
+      .select(LEGACY_LIVE_PLACE_SELECT)
+      .order("name", { ascending: true });
+
+    if (legacyResult.error) {
+      console.error(
+        "fetchPlaces place_live_status legacy error:",
+        legacyResult.error.message
+      );
+      return null;
+    }
+
+    return (legacyResult.data as RawPlace[] | null) ?? null;
   }
 
   return (data as RawPlace[] | null) ?? null;
@@ -303,8 +345,22 @@ async function readPlacesFromTable() {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("fetchPlaces places error:", error.message);
-    return null;
+    if (!isMissingSchemaFieldError(error.message)) {
+      console.error("fetchPlaces places error:", error.message);
+      return null;
+    }
+
+    const legacyResult = await client
+      .from("places")
+      .select(LEGACY_BASE_PLACE_SELECT)
+      .order("name", { ascending: true });
+
+    if (legacyResult.error) {
+      console.error("fetchPlaces places legacy error:", legacyResult.error.message);
+      return null;
+    }
+
+    return (legacyResult.data as RawPlace[] | null) ?? null;
   }
 
   return (data as RawPlace[] | null) ?? null;
@@ -336,8 +392,23 @@ export async function fetchPlaceById(placeId: string): Promise<ParkingPlace | nu
     .maybeSingle();
 
   if (error) {
-    console.error("fetchPlaceById error:", error.message);
-    return null;
+    if (!isMissingSchemaFieldError(error.message)) {
+      console.error("fetchPlaceById error:", error.message);
+      return null;
+    }
+
+    const legacyResult = await client
+      .from("place_live_status")
+      .select(LEGACY_LIVE_PLACE_SELECT)
+      .eq("id", normalizedPlaceId)
+      .maybeSingle();
+
+    if (legacyResult.error) {
+      console.error("fetchPlaceById legacy error:", legacyResult.error.message);
+      return null;
+    }
+
+    return mapRawPlace((legacyResult.data as RawPlace | null) ?? {});
   }
 
   return mapRawPlace((data as RawPlace | null) ?? {});

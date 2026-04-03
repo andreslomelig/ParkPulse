@@ -167,6 +167,63 @@ describe("places", () => {
     ]);
   });
 
+  it("retries the live-status view with a legacy select when new columns are missing", async () => {
+    const richViewQuery = buildSelectQuery({
+      data: null,
+      error: { message: "column place_live_status.description does not exist" },
+    });
+    const legacyViewQuery = buildSelectQuery({
+      data: [
+        {
+          id: "legacy-view-1",
+          name: "Legacy view",
+          latitude: 21.7,
+          longitude: -102.4,
+          current_status: "available",
+        },
+      ],
+      error: null,
+    });
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) =>
+          selectClause.includes("description") ? richViewQuery : legacyViewQuery
+        ),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchPlaces()).resolves.toEqual([
+      expect.objectContaining({
+        id: "legacy-view-1",
+        name: "Legacy view",
+      }),
+    ]);
+  });
+
+  it("returns fallback places when the legacy live-status query resolves with null data", async () => {
+    const richViewQuery = buildSelectQuery({
+      data: null,
+      error: { message: "column place_live_status.description does not exist" },
+    });
+    const legacyViewQuery = buildSelectQuery({
+      data: null,
+      error: null,
+    });
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) =>
+          selectClause.includes("description") ? richViewQuery : legacyViewQuery
+        ),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchPlaces()).resolves.toHaveLength(3);
+  });
+
   it("falls back to the base table when the live view fails", async () => {
     const liveQuery = buildSelectQuery({
       data: null,
@@ -203,6 +260,50 @@ describe("places", () => {
     );
   });
 
+  it("falls back to the base table when the legacy live-status select also fails", async () => {
+    const liveQuery = buildSelectQuery({
+      data: null,
+      error: { message: "column place_live_status.description does not exist" },
+    });
+    const legacyLiveQuery = buildSelectQuery({
+      data: null,
+      error: { message: "legacy live failed" },
+    });
+    const tableQuery = buildSelectQuery({
+      data: [
+        {
+          id: "remote-legacy-table",
+          name: "Lugar base",
+          latitude: 21.9,
+          longitude: -102.25,
+          current_status: "full",
+        },
+      ],
+      error: null,
+    });
+
+    const client = {
+      from: jest.fn((table: string) => ({
+        select: jest.fn((selectClause: string) => {
+          if (table === "place_live_status") {
+            return selectClause.includes("description") ? liveQuery : legacyLiveQuery;
+          }
+
+          return tableQuery;
+        }),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchPlaces()).resolves.toEqual([
+      expect.objectContaining({
+        id: "remote-legacy-table",
+        status: "full",
+      }),
+    ]);
+  });
+
   it("returns fallback places when both remote sources fail", async () => {
     const brokenQuery = buildSelectQuery({
       data: null,
@@ -219,6 +320,100 @@ describe("places", () => {
     const places = await fetchPlaces();
 
     expect(places).toHaveLength(3);
+  });
+
+  it("retries the base table with a legacy select when new columns are missing", async () => {
+    const viewQuery = buildSelectQuery({
+      data: null,
+      error: { message: "view error" },
+    });
+    const richTableQuery = buildSelectQuery({
+      data: null,
+      error: { message: "column places.description does not exist" },
+    });
+    const legacyTableQuery = buildSelectQuery({
+      data: [
+        {
+          id: "legacy-table-1",
+          name: "Legacy table",
+          latitude: 21.8,
+          longitude: -102.31,
+          current_status: "closed",
+        },
+      ],
+      error: null,
+    });
+    const client = {
+      from: jest.fn((table: string) => ({
+        select: jest.fn((selectClause: string) => {
+          if (table === "place_live_status") return viewQuery;
+          return selectClause.includes("description") ? richTableQuery : legacyTableQuery;
+        }),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchPlaces()).resolves.toEqual([
+      expect.objectContaining({
+        id: "legacy-table-1",
+        status: "closed",
+      }),
+    ]);
+  });
+
+  it("returns fallback places when the legacy base-table query resolves with null data", async () => {
+    const viewQuery = buildSelectQuery({
+      data: null,
+      error: { message: "view error" },
+    });
+    const richTableQuery = buildSelectQuery({
+      data: null,
+      error: { message: "column places.description does not exist" },
+    });
+    const legacyTableQuery = buildSelectQuery({
+      data: null,
+      error: null,
+    });
+    const client = {
+      from: jest.fn((table: string) => ({
+        select: jest.fn((selectClause: string) => {
+          if (table === "place_live_status") return viewQuery;
+          return selectClause.includes("description") ? richTableQuery : legacyTableQuery;
+        }),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchPlaces()).resolves.toHaveLength(3);
+  });
+
+  it("returns fallback data when the legacy base-table select also fails", async () => {
+    const viewQuery = buildSelectQuery({
+      data: null,
+      error: { message: "view error" },
+    });
+    const richTableQuery = buildSelectQuery({
+      data: null,
+      error: { message: "column places.description does not exist" },
+    });
+    const legacyTableQuery = buildSelectQuery({
+      data: null,
+      error: { message: "legacy table failed" },
+    });
+    const client = {
+      from: jest.fn((table: string) => ({
+        select: jest.fn((selectClause: string) => {
+          if (table === "place_live_status") return viewQuery;
+          return selectClause.includes("description") ? richTableQuery : legacyTableQuery;
+        }),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchPlaces()).resolves.toHaveLength(3);
   });
 
   it("returns fallback places when both remote sources are empty", async () => {
@@ -282,6 +477,104 @@ describe("places", () => {
     (getSupabaseClient as jest.Mock).mockReturnValue(client);
 
     await expect(fetchPlaceById("remote-3")).resolves.toBeNull();
+  });
+
+  it("retries fetchPlaceById with a legacy select when the rich view is stale", async () => {
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn().mockResolvedValue(
+              selectClause.includes("description")
+                ? {
+                    data: null,
+                    error: {
+                      message:
+                        "column place_live_status.description does not exist",
+                    },
+                  }
+                : {
+                    data: {
+                      id: "legacy-place-1",
+                      name: "Legacy place",
+                      latitude: 21.8,
+                      longitude: -102.2,
+                      current_status: "closed",
+                    },
+                    error: null,
+                  }
+            ),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchPlaceById("legacy-place-1")).resolves.toEqual(
+      expect.objectContaining({
+        id: "legacy-place-1",
+        name: "Legacy place",
+      })
+    );
+  });
+
+  it("returns null when the legacy fetchPlaceById query resolves with null data", async () => {
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn().mockResolvedValue(
+              selectClause.includes("description")
+                ? {
+                    data: null,
+                    error: {
+                      message:
+                        "column place_live_status.description does not exist",
+                    },
+                  }
+                : {
+                    data: null,
+                    error: null,
+                  }
+            ),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchPlaceById("legacy-place-1")).resolves.toBeNull();
+  });
+
+  it("returns null when the legacy fetchPlaceById select also fails", async () => {
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn().mockResolvedValue(
+              selectClause.includes("description")
+                ? {
+                    data: null,
+                    error: {
+                      message:
+                        "column place_live_status.description does not exist",
+                    },
+                  }
+                : {
+                    data: null,
+                    error: { message: "legacy place failed" },
+                  }
+            ),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchPlaceById("legacy-place-1")).resolves.toBeNull();
   });
 
   it("returns null when the selected-place query resolves without a row", async () => {

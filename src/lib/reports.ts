@@ -56,6 +56,18 @@ const REPORT_SELECT = [
   "reporter_display_name",
 ].join(", ");
 
+const LEGACY_REPORT_SELECT = [
+  "id",
+  "place_id",
+  "place_name",
+  "status",
+  "note",
+  "created_at",
+  "expires_at",
+  "reported_distance_meters",
+  "reporter_user_id",
+].join(", ");
+
 const fallbackRecentReports: ParkingReport[] = [
   {
     id: "report-1",
@@ -84,6 +96,17 @@ const fallbackRecentReports: ParkingReport[] = [
     source: "fallback",
   },
 ];
+
+function isMissingSchemaFieldError(message: string) {
+  return message.includes("does not exist");
+}
+
+function isMissingRpcSchemaCacheError(message: string) {
+  return (
+    message.includes("Could not find the function public.get_place_report_history") ||
+    message.includes("schema cache")
+  );
+}
 
 export function normalizeSubmitParkingReportInput(
   input: SubmitParkingReportInput
@@ -151,8 +174,30 @@ export async function fetchRecentReports(limit = 5): Promise<ParkingReport[]> {
     .limit(clampLimit(limit, 5));
 
   if (error) {
-    console.error("fetchRecentReports error:", error.message);
-    return [];
+    if (!isMissingSchemaFieldError(error.message)) {
+      console.error("fetchRecentReports error:", error.message);
+      return [];
+    }
+
+    const legacyResult = await client
+      .from("place_report_feed")
+      .select(LEGACY_REPORT_SELECT)
+      .order("created_at", { ascending: false })
+      .limit(clampLimit(limit, 5));
+
+    if (legacyResult.error) {
+      console.error(
+        "fetchRecentReports legacy error:",
+        legacyResult.error.message
+      );
+      return [];
+    }
+
+    return (
+      (legacyResult.data as RawParkingReport[] | null)
+        ?.map(mapRawReport)
+        .filter((item): item is ParkingReport => item !== null) ?? []
+    );
   }
 
   return (
@@ -182,8 +227,54 @@ export async function fetchReportsForPlace(
   });
 
   if (error) {
-    console.error("fetchReportsForPlace error:", error.message);
-    return [];
+    if (!isMissingRpcSchemaCacheError(error.message)) {
+      console.error("fetchReportsForPlace error:", error.message);
+      return [];
+    }
+
+    const directResult = await client
+      .from("place_report_feed")
+      .select(REPORT_SELECT)
+      .eq("place_id", normalizedPlaceId)
+      .order("created_at", { ascending: false })
+      .limit(clampLimit(limit, 10));
+
+    if (directResult.error) {
+      if (!isMissingSchemaFieldError(directResult.error.message)) {
+        console.error(
+          "fetchReportsForPlace direct error:",
+          directResult.error.message
+        );
+        return [];
+      }
+
+      const legacyDirectResult = await client
+        .from("place_report_feed")
+        .select(LEGACY_REPORT_SELECT)
+        .eq("place_id", normalizedPlaceId)
+        .order("created_at", { ascending: false })
+        .limit(clampLimit(limit, 10));
+
+      if (legacyDirectResult.error) {
+        console.error(
+          "fetchReportsForPlace legacy direct error:",
+          legacyDirectResult.error.message
+        );
+        return [];
+      }
+
+      return (
+        (legacyDirectResult.data as RawParkingReport[] | null)
+          ?.map(mapRawReport)
+          .filter((item): item is ParkingReport => item !== null) ?? []
+      );
+    }
+
+    return (
+      (directResult.data as RawParkingReport[] | null)
+        ?.map(mapRawReport)
+        .filter((item): item is ParkingReport => item !== null) ?? []
+    );
   }
 
   return (
