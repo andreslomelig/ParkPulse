@@ -16,9 +16,22 @@ import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import MapView, { Marker, Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { fetchPlaces, type ParkingPlace, type ParkingStatus } from "../lib/places";
+import {
+  createParkingPlace,
+  fetchPlaceById,
+  fetchPlaces,
+  type ParkingPlace,
+  type ParkingStatus,
+} from "../lib/places";
+import {
+  formatCapacitySummary,
+  formatCostSummary,
+  formatRatingSummary,
+  formatReportVolumeSummary,
+} from "../lib/parkingPresentation";
 import {
   fetchRecentReports,
+  fetchReportsForPlace,
   submitParkingReport,
   type ParkingReport,
 } from "../lib/reports";
@@ -26,6 +39,17 @@ import {
 type PermissionState = "unknown" | "granted" | "denied";
 type LatLng = { latitude: number; longitude: number };
 type ReportStatus = Exclude<ParkingStatus, "unknown">;
+type NewPlaceDraft = {
+  name: string;
+  address: string;
+  description: string;
+  hourlyCostMin: string;
+  hourlyCostMax: string;
+  costNotes: string;
+  capacityMin: string;
+  capacityMax: string;
+};
+
 export type MapScreenProps = {
   onOpenPrivacyLegal?: () => void;
 };
@@ -39,6 +63,20 @@ const PILOT_REGION: Region = {
 
 const REPORT_RADIUS_METERS = 200;
 const RECENT_REPORTS_LIMIT = 5;
+const PLACE_HISTORY_LIMIT = 4;
+
+function createEmptyNewPlaceDraft(): NewPlaceDraft {
+  return {
+    name: "",
+    address: "",
+    description: "",
+    hourlyCostMin: "",
+    hourlyCostMax: "",
+    costNotes: "",
+    capacityMin: "",
+    capacityMax: "",
+  };
+}
 
 function getElapsedLabel(isoDate: string | null) {
   if (!isoDate) return null;
@@ -100,6 +138,49 @@ function getStatusSupportLabel(status: ParkingStatus) {
   }
 }
 
+function getAccessTypeLabel(accessType: ParkingPlace["accessType"]) {
+  switch (accessType) {
+    case "public":
+      return "Publico";
+    case "private":
+      return "Privado";
+    case "mixed":
+      return "Mixto";
+    default:
+      return "Por validar";
+  }
+}
+
+function parseOptionalNumberInput(value: string) {
+  const normalizedValue = value.trim().replace(",", ".");
+  if (!normalizedValue) return null;
+
+  const parsedValue = Number(normalizedValue);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function getDraftCostType(draft: NewPlaceDraft) {
+  const min = parseOptionalNumberInput(draft.hourlyCostMin);
+  const max = parseOptionalNumberInput(draft.hourlyCostMax);
+  const hasCostSignal = min !== null || max !== null || draft.costNotes.trim().length > 0;
+
+  if (!hasCostSignal) return "unknown";
+  if (min === 0 && max === 0) return "free";
+  return "paid";
+}
+
+function getDraftCapacityConfidence(draft: NewPlaceDraft) {
+  const min = parseOptionalNumberInput(draft.capacityMin);
+  const max = parseOptionalNumberInput(draft.capacityMax);
+
+  if (min !== null && max !== null) {
+    return min === max ? "exact" : "range";
+  }
+
+  if (min !== null || max !== null) return "estimated";
+  return "unknown";
+}
+
 function distanceInMeters(from: LatLng, to: LatLng) {
   const toRadians = (value: number) => (value * Math.PI) / 180;
   const earthRadius = 6371000;
@@ -140,6 +221,12 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
   ]);
   const [savedPlaceIds] = useState<string[]>(["fallback-1", "fallback-2"]);
   const [recentReports, setRecentReports] = useState<ParkingReport[]>([]);
+  const [selectedPlaceReports, setSelectedPlaceReports] = useState<ParkingReport[]>([]);
+  const [isLoadingPlaceHistory, setIsLoadingPlaceHistory] = useState(false);
+  const [newPlaceDraft, setNewPlaceDraft] = useState<NewPlaceDraft>(
+    createEmptyNewPlaceDraft()
+  );
+  const [isSavingPlace, setIsSavingPlace] = useState(false);
   const placeSheetSnapPoints = useMemo(() => ["32%", "76%"], []);
   const isPlaceSheetExpanded = placeSheetIndex === 1;
 
@@ -171,6 +258,35 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!selectedPlaceId) {
+      setSelectedPlaceReports([]);
+      return () => {
+        active = false;
+      };
+    }
+
+    setIsLoadingPlaceHistory(true);
+    fetchReportsForPlace(selectedPlaceId, PLACE_HISTORY_LIMIT)
+      .then((history) => {
+        if (!active) return;
+        setSelectedPlaceReports(history);
+        setIsLoadingPlaceHistory(false);
+      })
+      .catch((e) => {
+        console.error(e);
+        if (!active) return;
+        setSelectedPlaceReports([]);
+        setIsLoadingPlaceHistory(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedPlaceId]);
 
   const requestUserLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -229,10 +345,26 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
       {
         id: "boot-fallback",
         name: "Estacionamiento (demo)",
+        description: "Punto temporal mientras cargan los datos remotos.",
+        address: "Aguascalientes",
         latitude: lat + 0.002,
         longitude: lng + 0.002,
         status: "unknown" as ParkingStatus,
         updatedAt: null,
+        lastReportedAt: null,
+        activeReportCount: 0,
+        totalReportCount: 0,
+        averageRating: null,
+        ratingCount: 0,
+        costType: "unknown" as const,
+        currencyCode: "MXN",
+        hourlyCostMin: null,
+        hourlyCostMax: null,
+        costNotes: null,
+        capacityMin: null,
+        capacityMax: null,
+        capacityConfidence: "unknown" as const,
+        accessType: "public" as const,
         source: "fallback" as const,
       },
     ];
@@ -342,40 +474,75 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
     setDraftPlaceCoord(null);
     setSelectedPlaceId(null);
     setReportingPlaceId(null);
+    setNewPlaceDraft(createEmptyNewPlaceDraft());
   };
 
   const onCancelAddPlace = () => {
     setIsAddMode(false);
     setDraftPlaceCoord(null);
+    setNewPlaceDraft(createEmptyNewPlaceDraft());
   };
 
-  const onSaveNewPlace = () => {
+  const onSaveNewPlace = async () => {
     const coord =
-      draftPlaceCoord ?? (region ? { latitude: region.latitude, longitude: region.longitude } : null);
+      draftPlaceCoord ??
+      (region
+        ? { latitude: region.latitude, longitude: region.longitude }
+        : { latitude: PILOT_REGION.latitude, longitude: PILOT_REGION.longitude });
 
     if (!coord) {
       Alert.alert("Ubicacion no disponible", "Mueve el mapa o toca una zona para agregar el lugar.");
       return;
     }
 
-    const newPlace: ParkingPlace = {
-      id: `local-${Date.now()}`,
-      name: "Nuevo estacionamiento",
-      latitude: coord.latitude,
-      longitude: coord.longitude,
-      status: "unknown",
-      updatedAt: new Date().toISOString(),
-      source: "fallback",
-    };
+    if (!newPlaceDraft.name.trim()) {
+      Alert.alert("Nombre requerido", "Escribe el nombre del estacionamiento antes de guardarlo.");
+      return;
+    }
 
-    setPlaces((prev) => [newPlace, ...prev]);
-    setSelectedPlaceId(newPlace.id);
-    setIsAddMode(false);
-    setDraftPlaceCoord(null);
-    setPlaceSheetIndex(1);
-    requestAnimationFrame(() => {
-      placeSheetRef.current?.snapToIndex(1);
-    });
+    try {
+      setIsSavingPlace(true);
+
+      const createdPlace = await createParkingPlace({
+        name: newPlaceDraft.name,
+        address: newPlaceDraft.address,
+        description: newPlaceDraft.description,
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+        costType: getDraftCostType(newPlaceDraft),
+        hourlyCostMin: parseOptionalNumberInput(newPlaceDraft.hourlyCostMin),
+        hourlyCostMax: parseOptionalNumberInput(newPlaceDraft.hourlyCostMax),
+        costNotes: newPlaceDraft.costNotes,
+        capacityMin: parseOptionalNumberInput(newPlaceDraft.capacityMin),
+        capacityMax: parseOptionalNumberInput(newPlaceDraft.capacityMax),
+        capacityConfidence: getDraftCapacityConfidence(newPlaceDraft),
+        accessType: "public",
+      });
+
+      setPlaces((prev) => [createdPlace, ...prev.filter((place) => place.id !== createdPlace.id)]);
+      setSelectedPlaceId(createdPlace.id);
+      setSelectedPlaceReports([]);
+      setIsAddMode(false);
+      setDraftPlaceCoord(null);
+      setNewPlaceDraft(createEmptyNewPlaceDraft());
+      setPlaceSheetIndex(1);
+      requestAnimationFrame(() => {
+        placeSheetRef.current?.snapToIndex(1);
+      });
+
+      Alert.alert(
+        "Estacionamiento guardado",
+        `${createdPlace.name} ya quedo persistido en la base de datos.`
+      );
+    } catch (e) {
+      console.error(e);
+      Alert.alert(
+        "Error",
+        e instanceof Error ? e.message : "No se pudo guardar el estacionamiento."
+      );
+    } finally {
+      setIsSavingPlace(false);
+    }
   };
 
   const onStartReport = (place: ParkingPlace) => {
@@ -431,25 +598,38 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
         reportedLongitude: currentCoord.longitude,
         reportedDistanceMeters: Math.round(distance),
       });
-
-      const updatedAt = createdReport.createdAt;
+      const [latestPlace, nextRecentReports, nextPlaceHistory] = await Promise.all([
+        fetchPlaceById(reportingPlace.id),
+        fetchRecentReports(RECENT_REPORTS_LIMIT),
+        fetchReportsForPlace(reportingPlace.id, PLACE_HISTORY_LIMIT),
+      ]);
 
       setPlaces((prev) =>
-        prev.map((place) =>
-          place.id === reportingPlace.id
-            ? {
-                ...place,
-                status,
-                updatedAt,
-              }
-            : place
-        )
+        prev.map((place) => {
+          if (place.id !== reportingPlace.id) return place;
+
+          return (
+            latestPlace ?? {
+              ...place,
+              status,
+              updatedAt: createdReport.createdAt,
+              lastReportedAt: createdReport.createdAt,
+              activeReportCount: place.activeReportCount + 1,
+              totalReportCount: place.totalReportCount + 1,
+            }
+          );
+        })
       );
-      setRecentReports((prev) =>
-        [createdReport, ...prev.filter((report) => report.id !== createdReport.id)].slice(
-          0,
-          RECENT_REPORTS_LIMIT
-        )
+      setRecentReports(
+        nextRecentReports.length > 0
+          ? nextRecentReports
+          : [createdReport, ...recentReports.filter((report) => report.id !== createdReport.id)].slice(
+              0,
+              RECENT_REPORTS_LIMIT
+            )
+      );
+      setSelectedPlaceReports(
+        nextPlaceHistory.length > 0 ? nextPlaceHistory : [createdReport]
       );
 
       setSelectedPlaceId(reportingPlace.id);
@@ -596,6 +776,7 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
         </Pressable>
 
         <Pressable
+          testID="toggle-add-place-button"
           style={[styles.fab, styles.fabPrimary, isAddMode && styles.fabPrimaryActive]}
           onPress={isAddMode ? onCancelAddPlace : onStartAddPlace}
         >
@@ -611,17 +792,147 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
         <View style={[styles.sheet, styles.sheetExpanded]}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Agregar estacionamiento</Text>
-          <Text style={styles.sheetSubtitle}>Toca el mapa para fijar ubicacion o usa el centro actual.</Text>
-          <View style={styles.sheetHeroDraft}>
-            <Text style={styles.sheetHeroDraftLabel}>Nuevo punto comunitario</Text>
-            <Text style={styles.sheetHeroDraftMeta}>Despues podremos pedir foto, nombre y tipo de acceso.</Text>
-          </View>
+          <Text style={styles.sheetSubtitle}>Toca el mapa para fijar ubicacion y completa los datos clave.</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.sheetHeroDraft}>
+              <Text style={styles.sheetHeroDraftLabel}>Nuevo punto comunitario</Text>
+              <Text style={styles.sheetHeroDraftMeta}>
+                Guardamos nombre, coordenadas, costo y capacidad estimada para que el lugar quede disponible para todos.
+              </Text>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>Nombre</Text>
+              <TextInput
+                testID="new-place-name-input"
+                value={newPlaceDraft.name}
+                onChangeText={(value) =>
+                  setNewPlaceDraft((prev) => ({ ...prev, name: value }))
+                }
+                placeholder="Nombre del estacionamiento"
+                placeholderTextColor="#94a3b8"
+                style={styles.textField}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>Referencia</Text>
+              <TextInput
+                value={newPlaceDraft.address}
+                onChangeText={(value) =>
+                  setNewPlaceDraft((prev) => ({ ...prev, address: value }))
+                }
+                placeholder="Direccion o referencia"
+                placeholderTextColor="#94a3b8"
+                style={styles.textField}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>Descripcion</Text>
+              <TextInput
+                value={newPlaceDraft.description}
+                onChangeText={(value) =>
+                  setNewPlaceDraft((prev) => ({ ...prev, description: value }))
+                }
+                placeholder="Descripcion breve del lugar"
+                placeholderTextColor="#94a3b8"
+                style={[styles.textField, styles.textFieldMultiline]}
+                multiline
+              />
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={styles.formColumn}>
+                <Text style={styles.inputLabel}>Costo min/h</Text>
+                <TextInput
+                  value={newPlaceDraft.hourlyCostMin}
+                  onChangeText={(value) =>
+                    setNewPlaceDraft((prev) => ({ ...prev, hourlyCostMin: value }))
+                  }
+                  placeholder="20"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="decimal-pad"
+                  style={styles.textField}
+                />
+              </View>
+              <View style={styles.formColumn}>
+                <Text style={styles.inputLabel}>Costo max/h</Text>
+                <TextInput
+                  value={newPlaceDraft.hourlyCostMax}
+                  onChangeText={(value) =>
+                    setNewPlaceDraft((prev) => ({ ...prev, hourlyCostMax: value }))
+                  }
+                  placeholder="30"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="decimal-pad"
+                  style={styles.textField}
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>Notas de costo</Text>
+              <TextInput
+                value={newPlaceDraft.costNotes}
+                onChangeText={(value) =>
+                  setNewPlaceDraft((prev) => ({ ...prev, costNotes: value }))
+                }
+                placeholder="Ej. tarifa variable por evento"
+                placeholderTextColor="#94a3b8"
+                style={styles.textField}
+              />
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={styles.formColumn}>
+                <Text style={styles.inputLabel}>Capacidad min</Text>
+                <TextInput
+                  value={newPlaceDraft.capacityMin}
+                  onChangeText={(value) =>
+                    setNewPlaceDraft((prev) => ({ ...prev, capacityMin: value }))
+                  }
+                  placeholder="40"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="number-pad"
+                  style={styles.textField}
+                />
+              </View>
+              <View style={styles.formColumn}>
+                <Text style={styles.inputLabel}>Capacidad max</Text>
+                <TextInput
+                  value={newPlaceDraft.capacityMax}
+                  onChangeText={(value) =>
+                    setNewPlaceDraft((prev) => ({ ...prev, capacityMax: value }))
+                  }
+                  placeholder="80"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="number-pad"
+                  style={styles.textField}
+                />
+              </View>
+            </View>
+
+            <Text style={styles.coordinateHint}>
+              Coordenadas a guardar:{" "}
+              {(draftPlaceCoord ?? region)
+                ? `${(draftPlaceCoord ?? region)!.latitude.toFixed(5)}, ${(draftPlaceCoord ?? region)!.longitude.toFixed(5)}`
+                : "mueve el mapa para fijarlas"}
+            </Text>
+          </ScrollView>
+
           <View style={styles.sheetActions}>
             <Pressable style={[styles.actionBtn, styles.actionGhost]} onPress={onCancelAddPlace}>
               <Text style={styles.actionGhostText}>Cancelar</Text>
             </Pressable>
-            <Pressable style={[styles.actionBtn, styles.actionPrimary]} onPress={onSaveNewPlace}>
-              <Text style={styles.actionPrimaryText}>Guardar lugar</Text>
+            <Pressable
+              style={[styles.actionBtn, styles.actionPrimary]}
+              onPress={onSaveNewPlace}
+              disabled={isSavingPlace}
+            >
+              <Text style={styles.actionPrimaryText}>
+                {isSavingPlace ? "Guardando..." : "Guardar lugar"}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -750,53 +1061,77 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
 
             <View style={styles.detailsGrid}>
               <View style={styles.detailTile}>
-                <Text style={styles.detailLabel}>Confianza</Text>
-                <Text style={styles.detailValue}>
-                  {selectedPlace.status === "unknown" ? "Baja" : selectedPlace.source === "remote" ? "Media" : "Pendiente"}
-                </Text>
+                <Text style={styles.detailLabel}>Calificacion</Text>
+                <Text style={styles.detailValue}>{formatRatingSummary(selectedPlace)}</Text>
               </View>
               <View style={styles.detailTile}>
-                <Text style={styles.detailLabel}>Acceso</Text>
-                <Text style={styles.detailValue}>Publico</Text>
-              </View>
-              <View style={styles.detailTile}>
-                <Text style={styles.detailLabel}>Horario</Text>
-                <Text style={styles.detailValue}>Por validar</Text>
+                <Text style={styles.detailLabel}>Capacidad</Text>
+                <Text style={styles.detailValue}>{formatCapacitySummary(selectedPlace)}</Text>
               </View>
               <View style={styles.detailTile}>
                 <Text style={styles.detailLabel}>Costo</Text>
-                <Text style={styles.detailValue}>Sin datos</Text>
+                <Text style={styles.detailValue}>{formatCostSummary(selectedPlace)}</Text>
+              </View>
+              <View style={styles.detailTile}>
+                <Text style={styles.detailLabel}>Acceso</Text>
+                <Text style={styles.detailValue}>{getAccessTypeLabel(selectedPlace.accessType)}</Text>
               </View>
             </View>
 
-            <View style={styles.photoSection}>
+            <View style={styles.historySection}>
               <View style={styles.photoHeaderRow}>
-                <Text style={styles.sectionTitle}>Fotos del lugar</Text>
-                <Pressable onPress={() => Alert.alert("Proximo paso", "Aqui agregaremos fotos del estacionamiento.")}>
-                  <Text style={styles.sectionAction}>Agregar</Text>
-                </Pressable>
+                <Text style={styles.sectionTitle}>Historial reciente</Text>
+                <Text style={styles.sectionAction}>
+                  {isLoadingPlaceHistory
+                    ? "Cargando..."
+                    : formatReportVolumeSummary(selectedPlace)}
+                </Text>
               </View>
-              <View style={styles.photoRow}>
-                <View style={[styles.photoCard, styles.photoCardWide]}>
-                  <Text style={styles.photoCardTitle}>Fachada / entrada</Text>
-                  <Text style={styles.photoCardBody}>Sirve para reconocer rapido el acceso al estacionamiento.</Text>
-                </View>
-                <View style={styles.photoColumn}>
-                  <View style={styles.photoCard}>
-                    <Text style={styles.photoCardTitle}>Tarifa</Text>
+              {selectedPlaceReports.length > 0 ? (
+                selectedPlaceReports.map((report) => (
+                  <View key={report.id} style={styles.historyRow}>
+                    <View
+                      style={[
+                        styles.historyStatus,
+                        { backgroundColor: `${statusToColor(report.status)}22` },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.historyStatusText,
+                          { color: statusToColor(report.status) },
+                        ]}
+                      >
+                        {statusToLabel(report.status)}
+                      </Text>
+                    </View>
+                    <View style={styles.historyCopy}>
+                      <Text style={styles.historyTitle}>
+                        {report.reporterDisplayName ?? "Comunidad"}
+                      </Text>
+                      <Text style={styles.historySubtitle}>
+                        {getElapsedLabel(report.createdAt) ?? "Reciente"}
+                        {report.note ? ` . ${report.note}` : ""}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.photoCard}>
-                    <Text style={styles.photoCardTitle}>Senaletica</Text>
-                  </View>
-                </View>
-              </View>
+                ))
+              ) : (
+                <Text style={styles.menuEmptyText}>
+                  Aun no hay reportes recientes para este estacionamiento.
+                </Text>
+              )}
             </View>
 
             <View style={styles.infoSection}>
               <Text style={styles.sectionTitle}>Sobre este lugar</Text>
               <Text style={styles.infoBody}>
-                Esta ficha esta pensada como una mezcla entre Google Maps y Waze: informacion util,
-                validaciones rapidas y espacio para que la comunidad mantenga el lugar actualizado.
+                {selectedPlace.description ??
+                  "Lugar comunitario dentro del piloto de Aguascalientes."}
+                {"\n\n"}Referencia: {selectedPlace.address ?? "Por validar"}.
+                {"\n"}Coordenadas: {selectedPlace.latitude.toFixed(5)},{" "}
+                {selectedPlace.longitude.toFixed(5)}.
+                {"\n"}Notas: {selectedPlace.costNotes ?? "Sin notas adicionales."}
               </Text>
             </View>
 
@@ -1274,6 +1609,27 @@ const styles = StyleSheet.create({
   photoColumn: { flex: 0.9, gap: 10 },
   photoCardTitle: { fontSize: 14, color: "#0f172a", fontWeight: "800" },
   photoCardBody: { marginTop: 4, fontSize: 12, lineHeight: 16, color: "#334155", fontWeight: "500" },
+  historySection: { marginTop: 18 },
+  historyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  historyStatus: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 10,
+  },
+  historyStatusText: { fontSize: 11, fontWeight: "900" },
+  historyCopy: { flex: 1 },
+  historyTitle: { fontSize: 14, color: "#0f172a", fontWeight: "800" },
+  historySubtitle: { marginTop: 3, fontSize: 12, color: "#64748b", fontWeight: "500" },
   infoSection: {
     marginTop: 18,
     backgroundColor: "#ffffff",
@@ -1309,6 +1665,33 @@ const styles = StyleSheet.create({
   },
   sheetHeroDraftLabel: { fontSize: 16, color: "#0f172a", fontWeight: "800" },
   sheetHeroDraftMeta: { marginTop: 6, fontSize: 13, lineHeight: 18, color: "#155e75", fontWeight: "500" },
+  formGroup: { marginTop: 14 },
+  formRow: { marginTop: 14, flexDirection: "row", gap: 10 },
+  formColumn: { flex: 1 },
+  inputLabel: { marginBottom: 6, fontSize: 12, color: "#475569", fontWeight: "800", textTransform: "uppercase" },
+  textField: {
+    minHeight: 48,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#dbe4ee",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#0f172a",
+    fontWeight: "600",
+  },
+  textFieldMultiline: {
+    minHeight: 96,
+    textAlignVertical: "top",
+  },
+  coordinateHint: {
+    marginTop: 14,
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#475569",
+    fontWeight: "600",
+  },
   validationPanel: {
     marginTop: 14,
     backgroundColor: "#ffffff",

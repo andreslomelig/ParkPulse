@@ -13,3 +13,17 @@ export const supabase = isSupabaseConfigured
       },
     })
   : null;
+
+export function getSupabaseClient() {
+  return supabase;
+}
+
+export function requireSupabaseClient() {
+  if (!supabase) {
+    throw new Error(
+      "Supabase no esta configurado. Configura EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY."
+    );
+  }
+
+  return supabase;
+}

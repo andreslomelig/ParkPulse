@@ -1,26 +1,32 @@
-import type { ParkingStatus } from "./places";
-import { supabase } from "./supabase";
+import { getCommunitySessionId } from "./communitySession";
+import {
+  clampLimit,
+  normalizeParkingReportStatus,
+  normalizeRatingValue,
+  toInteger,
+  toNumber,
+  toTrimmedString,
+  type ParkingReport,
+  type ParkingReportStatus,
+} from "./parkingShared";
+import { getSupabaseClient, requireSupabaseClient } from "./supabase";
 
-export type ParkingReportStatus = Exclude<ParkingStatus, "unknown">;
-
-export type ParkingReport = {
-  id: string;
-  placeId: string;
-  placeName: string;
-  status: ParkingReportStatus;
-  createdAt: string;
-  expiresAt: string | null;
-  source: "remote" | "fallback";
-};
+export type {
+  ParkingReport,
+  ParkingReportStatus,
+  ParkingStatus,
+} from "./parkingShared";
 
 export type SubmitParkingReportInput = {
   placeId: string;
   placeName: string;
   status: ParkingReportStatus;
+  note?: string | null;
   reporterSessionId?: string | null;
   reportedLatitude?: number | null;
   reportedLongitude?: number | null;
   reportedDistanceMeters?: number | null;
+  rating?: number | null;
 };
 
 type RawParkingReport = {
@@ -29,11 +35,26 @@ type RawParkingReport = {
   place_name?: string | null;
   status?: string | null;
   report_status?: string | null;
+  note?: string | null;
   created_at?: string | null;
   expires_at?: string | null;
+  reported_distance_meters?: number | string | null;
+  reporter_user_id?: string | null;
+  reporter_display_name?: string | null;
 };
 
-const DEMO_REPORTER_SESSION_ID = "demo-session";
+const REPORT_SELECT = [
+  "id",
+  "place_id",
+  "place_name",
+  "status",
+  "note",
+  "created_at",
+  "expires_at",
+  "reported_distance_meters",
+  "reporter_user_id",
+  "reporter_display_name",
+].join(", ");
 
 const fallbackRecentReports: ParkingReport[] = [
   {
@@ -41,8 +62,12 @@ const fallbackRecentReports: ParkingReport[] = [
     placeId: "fallback-1",
     placeName: "Centro - Plaza Patria",
     status: "available",
+    note: "Movimiento constante, aun hay espacios.",
     createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
     expiresAt: new Date(Date.now() + 7 * 60 * 1000).toISOString(),
+    reportedDistanceMeters: 30,
+    reporterUserId: null,
+    reporterDisplayName: "Comunidad",
     source: "fallback",
   },
   {
@@ -50,39 +75,52 @@ const fallbackRecentReports: ParkingReport[] = [
     placeId: "fallback-2",
     placeName: "Zona Feria - Estadio",
     status: "full",
+    note: "Se lleno por evento.",
     createdAt: new Date(Date.now() - 21 * 60 * 1000).toISOString(),
     expiresAt: new Date(Date.now() + 9 * 60 * 1000).toISOString(),
+    reportedDistanceMeters: 42,
+    reporterUserId: null,
+    reporterDisplayName: "Comunidad",
     source: "fallback",
   },
 ];
 
-function normalizeReportStatus(
-  raw: string | null | undefined
-): ParkingReportStatus | null {
-  const value = raw?.trim().toLowerCase();
-  if (value === "available" || value === "disponible") return "available";
-  if (value === "full" || value === "lleno") return "full";
-  if (value === "closed" || value === "cerrado") return "closed";
-  return null;
-}
+export function normalizeSubmitParkingReportInput(
+  input: SubmitParkingReportInput
+) {
+  const placeId = toTrimmedString(input.placeId);
+  const placeName = toTrimmedString(input.placeName);
+  const status = normalizeParkingReportStatus(input.status);
+  const rating = normalizeRatingValue(input.rating);
 
-function getReportTtlMinutes(status: ParkingReportStatus) {
-  switch (status) {
-    case "available":
-      return 15;
-    case "full":
-      return 30;
-    case "closed":
-      return 12 * 60;
+  if (!placeId || !placeName) {
+    throw new Error("El reporte necesita un estacionamiento valido.");
   }
-}
 
-function addMinutes(isoDate: string, minutes: number) {
-  return new Date(new Date(isoDate).getTime() + minutes * 60 * 1000).toISOString();
+  if (!status) {
+    throw new Error("El estado del reporte es invalido.");
+  }
+
+  if (input.rating !== null && input.rating !== undefined && rating === null) {
+    throw new Error("La calificacion del reporte debe estar entre 1 y 5.");
+  }
+
+  return {
+    placeId,
+    placeName,
+    status,
+    note: toTrimmedString(input.note),
+    reporterSessionId:
+      toTrimmedString(input.reporterSessionId) ?? getCommunitySessionId(),
+    reportedLatitude: toNumber(input.reportedLatitude),
+    reportedLongitude: toNumber(input.reportedLongitude),
+    reportedDistanceMeters: toInteger(input.reportedDistanceMeters),
+    rating,
+  };
 }
 
 function mapRawReport(report: RawParkingReport): ParkingReport | null {
-  const status = normalizeReportStatus(report.status ?? report.report_status);
+  const status = normalizeParkingReportStatus(report.status ?? report.report_status);
   if (!status) return null;
 
   const createdAt = report.created_at ?? new Date().toISOString();
@@ -90,22 +128,27 @@ function mapRawReport(report: RawParkingReport): ParkingReport | null {
   return {
     id: String(report.id ?? `report-${createdAt}`),
     placeId: String(report.place_id ?? "unknown-place"),
-    placeName: report.place_name?.trim() || "Estacionamiento",
+    placeName: toTrimmedString(report.place_name) ?? "Estacionamiento",
     status,
+    note: toTrimmedString(report.note),
     createdAt,
     expiresAt: report.expires_at ?? null,
+    reportedDistanceMeters: toInteger(report.reported_distance_meters),
+    reporterUserId: report.reporter_user_id ?? null,
+    reporterDisplayName: toTrimmedString(report.reporter_display_name),
     source: "remote",
   };
 }
 
 export async function fetchRecentReports(limit = 5): Promise<ParkingReport[]> {
-  if (!supabase) return fallbackRecentReports.slice(0, limit);
+  const client = getSupabaseClient();
+  if (!client) return fallbackRecentReports.slice(0, clampLimit(limit, 5));
 
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from("place_report_feed")
-    .select("id, place_id, place_name, status, created_at, expires_at")
+    .select(REPORT_SELECT)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(clampLimit(limit, 5));
 
   if (error) {
     console.error("fetchRecentReports error:", error.message);
@@ -123,18 +166,20 @@ export async function fetchReportsForPlace(
   placeId: string,
   limit = 10
 ): Promise<ParkingReport[]> {
-  if (!supabase) {
+  const normalizedPlaceId = toTrimmedString(placeId);
+  if (!normalizedPlaceId) return [];
+
+  const client = getSupabaseClient();
+  if (!client) {
     return fallbackRecentReports
-      .filter((report) => report.placeId === placeId)
-      .slice(0, limit);
+      .filter((report) => report.placeId === normalizedPlaceId)
+      .slice(0, clampLimit(limit, 10));
   }
 
-  const { data, error } = await supabase
-    .from("place_report_feed")
-    .select("id, place_id, place_name, status, created_at, expires_at")
-    .eq("place_id", placeId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  const { data, error } = await client.rpc("get_place_report_history", {
+    input_place_id: normalizedPlaceId,
+    input_limit: clampLimit(limit, 10),
+  });
 
   if (error) {
     console.error("fetchReportsForPlace error:", error.message);
@@ -151,51 +196,30 @@ export async function fetchReportsForPlace(
 export async function submitParkingReport(
   input: SubmitParkingReportInput
 ): Promise<ParkingReport> {
-  const createdAt = new Date().toISOString();
-  const fallbackReport: ParkingReport = {
-    id: `local-report-${Date.now()}`,
-    placeId: input.placeId,
-    placeName: input.placeName,
-    status: input.status,
-    createdAt,
-    expiresAt: addMinutes(createdAt, getReportTtlMinutes(input.status)),
-    source: "fallback",
-  };
+  const normalizedInput = normalizeSubmitParkingReportInput(input);
+  const client = requireSupabaseClient();
 
-  if (!supabase) return fallbackReport;
-
-  const { data, error } = await supabase
-    .from("place_reports")
-    .insert({
-      place_id: input.placeId,
-      report_status: input.status,
-      reporter_session_id: input.reporterSessionId ?? DEMO_REPORTER_SESSION_ID,
-      reported_latitude: input.reportedLatitude ?? null,
-      reported_longitude: input.reportedLongitude ?? null,
-      reported_distance_meters: input.reportedDistanceMeters ?? null,
-    })
-    .select("id, place_id, report_status, created_at, expires_at")
-    .single();
+  const { data, error } = await client.rpc("create_place_report", {
+    input_place_id: normalizedInput.placeId,
+    input_report_status: normalizedInput.status,
+    input_note: normalizedInput.note,
+    input_reported_latitude: normalizedInput.reportedLatitude,
+    input_reported_longitude: normalizedInput.reportedLongitude,
+    input_reported_distance_meters: normalizedInput.reportedDistanceMeters,
+    input_reporter_session_id: normalizedInput.reporterSessionId,
+    input_rating: normalizedInput.rating,
+  });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const status =
-    normalizeReportStatus((data as RawParkingReport | null)?.report_status) ??
-    input.status;
+  const createdReport = Array.isArray(data) ? data[0] : data;
+  const mappedReport = mapRawReport((createdReport as RawParkingReport | null) ?? {});
 
-  return {
-    id: String((data as RawParkingReport | null)?.id ?? fallbackReport.id),
-    placeId: String(
-      (data as RawParkingReport | null)?.place_id ?? input.placeId
-    ),
-    placeName: input.placeName,
-    status,
-    createdAt:
-      (data as RawParkingReport | null)?.created_at ?? fallbackReport.createdAt,
-    expiresAt:
-      (data as RawParkingReport | null)?.expires_at ?? fallbackReport.expiresAt,
-    source: "remote",
-  };
+  if (!mappedReport) {
+    throw new Error("No se pudo interpretar el reporte creado.");
+  }
+
+  return mappedReport;
 }
