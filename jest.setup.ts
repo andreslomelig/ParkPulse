@@ -1,3 +1,7 @@
+jest.mock("@react-native-async-storage/async-storage", () =>
+  jest.requireActual("@react-native-async-storage/async-storage/jest")
+);
+
 jest.mock("react-native-maps", () => {
   const React = require("react");
   const { View } = require("react-native");

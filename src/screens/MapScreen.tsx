@@ -35,6 +35,7 @@ import {
   submitParkingReport,
   type ParkingReport,
 } from "../lib/reports";
+import type { AuthenticatedAppUser } from "../lib/auth";
 
 type PermissionState = "unknown" | "granted" | "denied";
 type LatLng = { latitude: number; longitude: number };
@@ -51,7 +52,9 @@ type NewPlaceDraft = {
 };
 
 export type MapScreenProps = {
+  currentUser: AuthenticatedAppUser;
   onOpenPrivacyLegal?: () => void;
+  onSignOut: () => void | Promise<void>;
 };
 
 const PILOT_REGION: Region = {
@@ -151,6 +154,27 @@ function getAccessTypeLabel(accessType: ParkingPlace["accessType"]) {
   }
 }
 
+function getUserDisplayName(user: AuthenticatedAppUser) {
+  return user.fullName ?? user.email;
+}
+
+function getUserInitials(user: AuthenticatedAppUser) {
+  const displayName = getUserDisplayName(user);
+  const parts = displayName
+    .split(" ")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "PP";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 function parseOptionalNumberInput(value: string) {
   const normalizedValue = value.trim().replace(",", ".");
   if (!normalizedValue) return null;
@@ -196,7 +220,11 @@ function distanceInMeters(from: LatLng, to: LatLng) {
   return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
+export default function MapScreen({
+  currentUser,
+  onOpenPrivacyLegal,
+  onSignOut,
+}: MapScreenProps) {
   const mapRef = useRef<MapView>(null);
   const placeSheetRef = useRef<BottomSheet>(null);
   const ignoreNextMapPressRef = useRef(false);
@@ -440,6 +468,20 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
     }
 
     Alert.alert("Privacidad y legal", "Esta seccion se abrira desde la navegacion principal.");
+  };
+
+  const handleSignOutPress = async () => {
+    closeMenu();
+
+    try {
+      await onSignOut();
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        "Error",
+        error instanceof Error ? error.message : "No se pudo cerrar sesion."
+      );
+    }
   };
 
   const focusPlaceFromSearch = (place: ParkingPlace) => {
@@ -1267,19 +1309,21 @@ export default function MapScreen({ onOpenPrivacyLegal }: MapScreenProps) {
           <View style={styles.menuPanel}>
             <View style={styles.menuProfileCard}>
               <View style={styles.menuAvatar}>
-                <Text style={styles.menuAvatarText}>PP</Text>
+                <Text style={styles.menuAvatarText}>{getUserInitials(currentUser)}</Text>
               </View>
               <View style={styles.menuProfileCopy}>
-                <Text style={styles.menuProfileTitle}>Invitado</Text>
+                <Text style={styles.menuProfileTitle}>{getUserDisplayName(currentUser)}</Text>
                 <Text style={styles.menuProfileSubtitle}>
-                  Inicia sesion para reportar, guardar lugares y construir reputacion comunitaria.
+                  {currentUser.email}
+                  {currentUser.phone ? `\n${currentUser.phone}` : ""}
                 </Text>
               </View>
               <Pressable
+                testID="sign-out-button"
                 style={styles.menuPrimaryBtn}
-                onPress={() => Alert.alert("Proximo paso", "Aqui conectaremos login con telefono y OTP.")}
+                onPress={handleSignOutPress}
               >
-                <Text style={styles.menuPrimaryBtnText}>Entrar</Text>
+                <Text style={styles.menuPrimaryBtnText}>Cerrar sesion</Text>
               </Pressable>
             </View>
 

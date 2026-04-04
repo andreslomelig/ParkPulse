@@ -13,6 +13,7 @@ import {
   fetchReportsForPlace,
   submitParkingReport,
 } from "../lib/reports";
+import type { AuthenticatedAppUser } from "../lib/auth";
 
 jest.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: jest.fn(),
@@ -84,6 +85,23 @@ const basePlaces = [
     source: "remote",
   },
 ];
+
+const currentUser: AuthenticatedAppUser = {
+  id: "user-1",
+  email: "ada@example.com",
+  fullName: "Ada Lovelace",
+  phone: "+52 449 123 4567",
+};
+
+function renderMapScreen(overrideProps: Partial<React.ComponentProps<typeof MapScreen>> = {}) {
+  return render(
+    <MapScreen
+      currentUser={currentUser}
+      onSignOut={jest.fn()}
+      {...overrideProps}
+    />
+  );
+}
 
 describe("MapScreen", () => {
   beforeEach(() => {
@@ -183,7 +201,7 @@ describe("MapScreen", () => {
   });
 
   it("renders the loaded place and opens search results", async () => {
-    const screen = render(<MapScreen />);
+    const screen = renderMapScreen();
 
     await waitFor(() => {
       expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
@@ -208,7 +226,7 @@ describe("MapScreen", () => {
   });
 
   it("opens the menu shell and shows recent report history", async () => {
-    const screen = render(<MapScreen />);
+    const screen = renderMapScreen();
 
     await waitFor(() => {
       expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
@@ -217,7 +235,8 @@ describe("MapScreen", () => {
     fireEvent.press(screen.getByTestId("open-menu-button"));
 
     await waitFor(() => {
-      expect(screen.getByText("Invitado")).toBeTruthy();
+      expect(screen.getByText("Ada Lovelace")).toBeTruthy();
+      expect(screen.getByText(/ada@example\.com/)).toBeTruthy();
       expect(screen.getByText("Historial de reportes")).toBeTruthy();
       expect(screen.getByText("Lugares guardados")).toBeTruthy();
       expect(screen.getByText("Historial remoto")).toBeTruthy();
@@ -226,7 +245,7 @@ describe("MapScreen", () => {
 
   it("opens privacy and legal from the menu", async () => {
     const onOpenPrivacyLegal = jest.fn();
-    const screen = render(<MapScreen onOpenPrivacyLegal={onOpenPrivacyLegal} />);
+    const screen = renderMapScreen({ onOpenPrivacyLegal });
 
     await waitFor(() => {
       expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
@@ -244,7 +263,7 @@ describe("MapScreen", () => {
   });
 
   it("opens report validation options from the place sheet", async () => {
-    const screen = render(<MapScreen />);
+    const screen = renderMapScreen();
 
     await waitFor(() => {
       expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
@@ -268,7 +287,7 @@ describe("MapScreen", () => {
       },
     });
 
-    const screen = render(<MapScreen />);
+    const screen = renderMapScreen();
 
     await waitFor(() => {
       expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
@@ -298,7 +317,7 @@ describe("MapScreen", () => {
   });
 
   it("creates a parking place and persists it through the API", async () => {
-    const screen = render(<MapScreen />);
+    const screen = renderMapScreen();
 
     await waitFor(() => {
       expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
@@ -328,5 +347,26 @@ describe("MapScreen", () => {
       "Estacionamiento guardado",
       expect.stringContaining("Nuevo estacionamiento")
     );
+  });
+
+  it("allows the user to sign out from the menu", async () => {
+    const onSignOut = jest.fn();
+    const screen = renderMapScreen({ onSignOut });
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-menu-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("sign-out-button")).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("sign-out-button"));
+    });
+
+    expect(onSignOut).toHaveBeenCalledTimes(1);
   });
 });

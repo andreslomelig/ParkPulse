@@ -10,9 +10,10 @@ anti-spam rules.
 ## Current App Status
 
 -   Map-first pilot experience for Aguascalientes
+-   Required email/password authentication before entering the app
 -   Parking place bottom sheet with richer place details, rating summary and recent history
 -   Search overlay with local client-side filtering
--   Menu shell with recent report history and login placeholder
+-   Session-aware menu with user identity and sign out
 -   Persistent parking creation flow backed by Supabase RPCs
 -   Report flow with proximity validation connected to Supabase
 -   Supabase schema integrated for `user_profiles`, `places`, `place_reports` and `place_ratings`
@@ -25,7 +26,7 @@ OTP auth and stricter server-side rate limits are still pending.
 
 -   Map with parking places (pilot zone)
 -   Place details: status, last updated, confidence
--   Phone login required to report
+-   Email/password login required to use the app
 -   Reports expire automatically (TTL)
 -   Proximity validation + rate limiting
 

@@ -69,7 +69,10 @@ begin
   values (
     new.id,
     coalesce(nullif(trim(new.email), ''), format('user-%s@parkpulse.local', new.id)),
-    nullif(trim(new.phone), ''),
+    coalesce(
+      nullif(trim(new.phone), ''),
+      nullif(trim(new.raw_user_meta_data ->> 'phone'), '')
+    ),
     resolved_full_name,
     nullif(trim(new.raw_user_meta_data ->> 'preferred_name'), ''),
     nullif(trim(new.raw_user_meta_data ->> 'avatar_url'), ''),
@@ -109,7 +112,10 @@ insert into public.user_profiles (
 select
   auth_user.id,
   coalesce(nullif(trim(auth_user.email), ''), format('user-%s@parkpulse.local', auth_user.id)),
-  nullif(trim(auth_user.phone), ''),
+  coalesce(
+    nullif(trim(auth_user.phone), ''),
+    nullif(trim(auth_user.raw_user_meta_data ->> 'phone'), '')
+  ),
   coalesce(
     nullif(trim(auth_user.raw_user_meta_data ->> 'full_name'), ''),
     nullif(trim(auth_user.raw_user_meta_data ->> 'name'), ''),

@@ -42,10 +42,17 @@ npm run start
 ```
 
 If `.env` values are valid:
+- users must log in before seeing the map
+- sign up uses `full_name`, `email`, `phone` and `password`
 - markers load from `place_live_status`
 - new parking places are persisted through `create_place`
 - reports are persisted through `create_place_report`
 - place history loads from `place_report_feed`
+
+If your Supabase project requires email confirmation:
+- sign up will create the account first
+- the app will then ask the user to verify the email and log in
+- if you want immediate access right after sign up, disable email confirmation in Supabase Auth settings
 
 If `.env` values are missing, the app falls back to local demo reads only. Persistent writes require Supabase to be configured.
 

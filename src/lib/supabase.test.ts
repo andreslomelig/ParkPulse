@@ -55,6 +55,8 @@ describe("supabase", () => {
     jest.isolateModules(() => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const module = require("./supabase");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const storage = require("@react-native-async-storage/async-storage").default;
 
       expect(module.isSupabaseConfigured).toBe(true);
       expect(createClient).toHaveBeenCalledWith(
@@ -62,8 +64,10 @@ describe("supabase", () => {
         "anon-key",
         {
           auth: {
-            persistSession: false,
-            autoRefreshToken: false,
+            storage,
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: false,
           },
         }
       );
