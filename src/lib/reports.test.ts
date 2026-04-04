@@ -1,6 +1,7 @@
 import {
   fetchRecentReports,
   fetchReportsForPlace,
+  fetchReportsForUser,
   normalizeSubmitParkingReportInput,
   submitParkingReport,
 } from "./reports";
@@ -329,6 +330,43 @@ describe("reports", () => {
     ]);
   });
 
+  it("reads user-specific history from the feed endpoint", async () => {
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            order: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: "report-3",
+                    place_id: "place-9",
+                    place_name: "Altaria Mall",
+                    status: "closed",
+                    reporter_user_id: "user-1",
+                    created_at: "2026-03-19T18:03:00.000Z",
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchReportsForUser("", 10)).resolves.toEqual([]);
+    await expect(fetchReportsForUser("user-1", 10)).resolves.toEqual([
+      expect.objectContaining({
+        id: "report-3",
+        placeName: "Altaria Mall",
+        reporterUserId: "user-1",
+      }),
+    ]);
+  });
+
   it("returns an empty history collection when the direct history query fails", async () => {
     const client = {
       from: jest.fn(() => ({
@@ -390,6 +428,52 @@ describe("reports", () => {
       expect.objectContaining({
         id: "legacy-history-1",
         status: "closed",
+      }),
+    ]);
+  });
+
+  it("uses a legacy user-history select when reporter_display_name is missing", async () => {
+    const client = {
+      from: jest.fn(() => ({
+        select: jest.fn((selectClause: string) => ({
+          eq: jest.fn(() => ({
+            order: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue(
+                selectClause.includes("reporter_display_name")
+                  ? {
+                      data: null,
+                      error: {
+                        message:
+                          "column place_report_feed.reporter_display_name does not exist",
+                      },
+                    }
+                  : {
+                      data: [
+                        {
+                          id: "legacy-user-history-1",
+                          place_id: "place-2",
+                          place_name: "Lugar",
+                          status: "full",
+                          reporter_user_id: "user-1",
+                          created_at: "2026-03-19T18:01:00.000Z",
+                        },
+                      ],
+                      error: null,
+                    }
+              ),
+            }),
+          })),
+        })),
+      })),
+    };
+
+    (getSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(fetchReportsForUser("user-1", 10)).resolves.toEqual([
+      expect.objectContaining({
+        id: "legacy-user-history-1",
+        status: "full",
+        reporterUserId: "user-1",
       }),
     ]);
   });

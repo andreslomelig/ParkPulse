@@ -30,9 +30,11 @@ jest.mock("../screens/MapScreen", () => {
   return function MockMapScreen({
     currentUser,
     onSignOut,
+    onOpenReportHistory,
   }: {
     currentUser: { fullName: string | null; email: string };
     onSignOut: () => Promise<void>;
+    onOpenReportHistory: () => void;
   }) {
     return React.createElement(
       View,
@@ -40,10 +42,24 @@ jest.mock("../screens/MapScreen", () => {
       React.createElement(Text, null, currentUser.fullName ?? currentUser.email),
       React.createElement(
         Pressable,
+        { testID: "navigator-open-history-button", onPress: onOpenReportHistory },
+        React.createElement(Text, null, "Open history")
+      ),
+      React.createElement(
+        Pressable,
         { testID: "navigator-sign-out-button", onPress: onSignOut },
         React.createElement(Text, null, "Sign out")
       )
     );
+  };
+});
+
+jest.mock("../screens/ReportHistoryScreen", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+
+  return function MockReportHistoryScreen() {
+    return React.createElement(Text, null, "Report History Screen");
   };
 });
 
@@ -97,6 +113,27 @@ describe("AppNavigator", () => {
 
     await waitFor(() => {
       expect(signOutCurrentUser).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("navigates to report history from the map flow", async () => {
+    (getCurrentAuthUser as jest.Mock).mockResolvedValue({
+      id: "user-1",
+      email: "ada@example.com",
+      fullName: "Ada Lovelace",
+      phone: "+52 449 123 4567",
+    });
+
+    const screen = render(<AppNavigator />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("navigator-open-history-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("navigator-open-history-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Report History Screen")).toBeTruthy();
     });
   });
 });

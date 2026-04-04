@@ -54,6 +54,7 @@ type NewPlaceDraft = {
 export type MapScreenProps = {
   currentUser: AuthenticatedAppUser;
   onOpenPrivacyLegal?: () => void;
+  onOpenReportHistory?: () => void;
   onSignOut: () => void | Promise<void>;
 };
 
@@ -222,6 +223,7 @@ function distanceInMeters(from: LatLng, to: LatLng) {
 
 export default function MapScreen({
   currentUser,
+  onOpenReportHistory,
   onOpenPrivacyLegal,
   onSignOut,
 }: MapScreenProps) {
@@ -468,6 +470,20 @@ export default function MapScreen({
     }
 
     Alert.alert("Privacidad y legal", "Esta seccion se abrira desde la navegacion principal.");
+  };
+
+  const openReportHistory = () => {
+    closeMenu();
+
+    if (onOpenReportHistory) {
+      onOpenReportHistory();
+      return;
+    }
+
+    Alert.alert(
+      "Historial de reportes",
+      "Esta seccion se abrira desde la navegacion principal."
+    );
   };
 
   const handleSignOutPress = async () => {
@@ -1336,7 +1352,8 @@ export default function MapScreen({
                 <Text style={styles.menuSectionTitle}>Tu actividad</Text>
                 <Pressable
                   style={styles.menuActionRow}
-                  onPress={() => Alert.alert("Proximo paso", "Aqui abriremos el historial completo de validaciones.")}
+                  testID="open-report-history-button"
+                  onPress={openReportHistory}
                 >
                   <Text style={styles.menuActionIcon}>✓</Text>
                   <View style={styles.menuActionCopy}>

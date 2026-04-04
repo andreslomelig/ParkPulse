@@ -262,6 +262,25 @@ describe("MapScreen", () => {
     expect(onOpenPrivacyLegal).toHaveBeenCalledTimes(1);
   });
 
+  it("opens report history from the menu", async () => {
+    const onOpenReportHistory = jest.fn();
+    const screen = renderMapScreen({ onOpenReportHistory });
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-menu-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("open-report-history-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-report-history-button"));
+
+    expect(onOpenReportHistory).toHaveBeenCalledTimes(1);
+  });
+
   it("opens report validation options from the place sheet", async () => {
     const screen = renderMapScreen();
 

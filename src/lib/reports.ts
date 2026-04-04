@@ -43,6 +43,13 @@ type RawParkingReport = {
   reporter_display_name?: string | null;
 };
 
+type ReportFeedScope =
+  | {
+      column: "place_id" | "reporter_user_id";
+      value: string;
+    }
+  | null;
+
 const REPORT_SELECT = [
   "id",
   "place_id",
@@ -146,13 +153,13 @@ function mapReportRows(rows: RawParkingReport[] | null): ParkingReport[] {
 async function readReportFeed(
   client: NonNullable<ReturnType<typeof getSupabaseClient>>,
   limit: number,
-  placeId: string | null,
+  scope: ReportFeedScope,
   primaryErrorLabel: string,
   legacyErrorLabel: string
 ): Promise<ParkingReport[]> {
   const runSelect = async (selectClause: string) => {
     const baseQuery = client.from("place_report_feed").select(selectClause);
-    const scopedQuery = placeId ? baseQuery.eq("place_id", placeId) : baseQuery;
+    const scopedQuery = scope ? baseQuery.eq(scope.column, scope.value) : baseQuery;
 
     return scopedQuery
       .order("created_at", { ascending: false })
@@ -230,9 +237,32 @@ export async function fetchReportsForPlace(
   return readReportFeed(
     client,
     clampLimit(limit, 10),
-    normalizedPlaceId,
+    { column: "place_id", value: normalizedPlaceId },
     "fetchReportsForPlace error:",
     "fetchReportsForPlace legacy error:"
+  );
+}
+
+export async function fetchReportsForUser(
+  userId: string,
+  limit = 25
+): Promise<ParkingReport[]> {
+  const normalizedUserId = toTrimmedString(userId);
+  if (!normalizedUserId) return [];
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return fallbackRecentReports
+      .filter((report) => report.reporterUserId === normalizedUserId)
+      .slice(0, clampLimit(limit, 25));
+  }
+
+  return readReportFeed(
+    client,
+    clampLimit(limit, 25),
+    { column: "reporter_user_id", value: normalizedUserId },
+    "fetchReportsForUser error:",
+    "fetchReportsForUser legacy error:"
   );
 }
 

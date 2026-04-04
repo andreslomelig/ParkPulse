@@ -11,11 +11,13 @@ import {
 import AuthScreen from "../screens/AuthScreen";
 import MapScreen from "../screens/MapScreen";
 import PrivacyLegalScreen from "../screens/PrivacyLegalScreen";
+import ReportHistoryScreen from "../screens/ReportHistoryScreen";
 
 export type RootStackParamList = {
   Auth: undefined;
   Map: undefined;
   PrivacyLegal: undefined;
+  ReportHistory: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -75,8 +77,15 @@ export default function AppNavigator() {
                   currentUser={currentUser}
                   onSignOut={signOutCurrentUser}
                   onOpenPrivacyLegal={() => navigation.navigate("PrivacyLegal")}
+                  onOpenReportHistory={() => navigation.navigate("ReportHistory")}
                 />
               )}
+            </Stack.Screen>
+            <Stack.Screen
+              name="ReportHistory"
+              options={{ title: "Historial de reportes" }}
+            >
+              {() => <ReportHistoryScreen currentUser={currentUser} />}
             </Stack.Screen>
             <Stack.Screen
               name="PrivacyLegal"
