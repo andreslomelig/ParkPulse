@@ -31,10 +31,12 @@ jest.mock("../screens/MapScreen", () => {
     currentUser,
     onSignOut,
     onOpenReportHistory,
+    onOpenSavedPlaces,
   }: {
     currentUser: { fullName: string | null; email: string };
     onSignOut: () => Promise<void>;
     onOpenReportHistory: () => void;
+    onOpenSavedPlaces: () => void;
   }) {
     return React.createElement(
       View,
@@ -44,6 +46,11 @@ jest.mock("../screens/MapScreen", () => {
         Pressable,
         { testID: "navigator-open-history-button", onPress: onOpenReportHistory },
         React.createElement(Text, null, "Open history")
+      ),
+      React.createElement(
+        Pressable,
+        { testID: "navigator-open-saved-button", onPress: onOpenSavedPlaces },
+        React.createElement(Text, null, "Open saved")
       ),
       React.createElement(
         Pressable,
@@ -60,6 +67,15 @@ jest.mock("../screens/ReportHistoryScreen", () => {
 
   return function MockReportHistoryScreen() {
     return React.createElement(Text, null, "Report History Screen");
+  };
+});
+
+jest.mock("../screens/SavedPlacesScreen", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+
+  return function MockSavedPlacesScreen() {
+    return React.createElement(Text, null, "Saved Places Screen");
   };
 });
 
@@ -134,6 +150,27 @@ describe("AppNavigator", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Report History Screen")).toBeTruthy();
+    });
+  });
+
+  it("navigates to saved places from the map flow", async () => {
+    (getCurrentAuthUser as jest.Mock).mockResolvedValue({
+      id: "user-1",
+      email: "ada@example.com",
+      fullName: "Ada Lovelace",
+      phone: "+52 449 123 4567",
+    });
+
+    const screen = render(<AppNavigator />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("navigator-open-saved-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("navigator-open-saved-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Saved Places Screen")).toBeTruthy();
     });
   });
 });

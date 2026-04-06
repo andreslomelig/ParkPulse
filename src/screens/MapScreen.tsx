@@ -36,6 +36,11 @@ import {
   type ParkingReport,
 } from "../lib/reports";
 import type { AuthenticatedAppUser } from "../lib/auth";
+import {
+  fetchSavedPlaceIds,
+  mapSavedPlaces,
+  toggleSavedPlaceForUser,
+} from "../lib/savedPlaces";
 
 type PermissionState = "unknown" | "granted" | "denied";
 type LatLng = { latitude: number; longitude: number };
@@ -55,6 +60,9 @@ export type MapScreenProps = {
   currentUser: AuthenticatedAppUser;
   onOpenPrivacyLegal?: () => void;
   onOpenReportHistory?: () => void;
+  onOpenSavedPlaces?: () => void;
+  pendingFocusPlaceId?: string | null;
+  pendingFocusRequestId?: number | null;
   onSignOut: () => void | Promise<void>;
 };
 
@@ -225,11 +233,15 @@ export default function MapScreen({
   currentUser,
   onOpenReportHistory,
   onOpenPrivacyLegal,
+  onOpenSavedPlaces,
+  pendingFocusPlaceId,
+  pendingFocusRequestId,
   onSignOut,
 }: MapScreenProps) {
   const mapRef = useRef<MapView>(null);
   const placeSheetRef = useRef<BottomSheet>(null);
   const ignoreNextMapPressRef = useRef(false);
+  const lastHandledFocusRequestIdRef = useRef<number | null>(null);
 
   const [permission, setPermission] = useState<PermissionState>("unknown");
   const [region, setRegion] = useState<Region | null>(null);
@@ -249,7 +261,9 @@ export default function MapScreen({
     "Altaria Mall",
     "San Marcos",
   ]);
-  const [savedPlaceIds] = useState<string[]>(["fallback-1", "fallback-2"]);
+  const [savedPlaceIds, setSavedPlaceIds] = useState<string[]>([]);
+  const [isLoadingSavedPlaces, setIsLoadingSavedPlaces] = useState(true);
+  const [isTogglingSavedPlace, setIsTogglingSavedPlace] = useState(false);
   const [recentReports, setRecentReports] = useState<ParkingReport[]>([]);
   const [selectedPlaceReports, setSelectedPlaceReports] = useState<ParkingReport[]>([]);
   const [isLoadingPlaceHistory, setIsLoadingPlaceHistory] = useState(false);
@@ -288,6 +302,29 @@ export default function MapScreen({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchSavedPlaceIds(currentUser.id)
+      .then((nextSavedPlaceIds) => {
+        if (!active) return;
+
+        setSavedPlaceIds(nextSavedPlaceIds);
+        setIsLoadingSavedPlaces(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        if (!active) return;
+
+        setSavedPlaceIds([]);
+        setIsLoadingSavedPlaces(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser.id]);
 
   useEffect(() => {
     let active = true;
@@ -419,8 +456,10 @@ export default function MapScreen({
   }, [mapReadyPlaces, searchQuery]);
 
   const savedPlaces = useMemo(() => {
-    return mapReadyPlaces.filter((place) => savedPlaceIds.includes(place.id));
+    return mapSavedPlaces(mapReadyPlaces, savedPlaceIds);
   }, [mapReadyPlaces, savedPlaceIds]);
+
+  const isSelectedPlaceSaved = selectedPlace ? savedPlaceIds.includes(selectedPlace.id) : false;
 
   useEffect(() => {
     if (!selectedPlaceId) return;
@@ -486,6 +525,20 @@ export default function MapScreen({
     );
   };
 
+  const openSavedPlaces = () => {
+    closeMenu();
+
+    if (onOpenSavedPlaces) {
+      onOpenSavedPlaces();
+      return;
+    }
+
+    Alert.alert(
+      "Lugares guardados",
+      "Esta seccion se abrira desde la navegacion principal."
+    );
+  };
+
   const handleSignOutPress = async () => {
     closeMenu();
 
@@ -525,6 +578,52 @@ export default function MapScreen({
       return next.slice(0, 5);
     });
     setSearchQuery("");
+  };
+
+  useEffect(() => {
+    if (!pendingFocusPlaceId || pendingFocusRequestId === null || pendingFocusRequestId === undefined) {
+      return;
+    }
+
+    if (lastHandledFocusRequestIdRef.current === pendingFocusRequestId) {
+      return;
+    }
+
+    const placeToFocus =
+      mapReadyPlaces.find((place) => place.id === pendingFocusPlaceId) ?? null;
+
+    if (!placeToFocus) {
+      return;
+    }
+
+    lastHandledFocusRequestIdRef.current = pendingFocusRequestId;
+    focusPlaceFromSearch(placeToFocus);
+  }, [mapReadyPlaces, pendingFocusPlaceId, pendingFocusRequestId]);
+
+  const handleToggleSavedPlace = async () => {
+    if (!selectedPlace) return;
+
+    try {
+      setIsTogglingSavedPlace(true);
+
+      const { saved, placeIds } = await toggleSavedPlaceForUser(
+        currentUser.id,
+        selectedPlace.id
+      );
+
+      setSavedPlaceIds(placeIds);
+      Alert.alert(
+        saved ? "Lugar guardado" : "Guardado actualizado",
+        saved
+          ? `${selectedPlace.name} se agrego a tus lugares guardados.`
+          : `${selectedPlace.name} se quito de tus lugares guardados.`
+      );
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "No se pudo actualizar tus lugares guardados.");
+    } finally {
+      setIsTogglingSavedPlace(false);
+    }
   };
 
   const onStartAddPlace = () => {
@@ -1195,10 +1294,28 @@ export default function MapScreen({
 
             <View style={styles.sheetActions}>
               <Pressable
-                style={[styles.actionBtn, styles.actionGhost]}
-                onPress={() => Alert.alert("Proximo paso", "Aqui abriremos guardados, compartir o historial del lugar.")}
+                testID="toggle-save-place-button"
+                style={[
+                  styles.actionBtn,
+                  isSelectedPlaceSaved ? styles.actionSuccess : styles.actionGhost,
+                  (isLoadingSavedPlaces || isTogglingSavedPlace) && styles.actionDisabled,
+                ]}
+                onPress={handleToggleSavedPlace}
+                disabled={isLoadingSavedPlaces || isTogglingSavedPlace}
               >
-                <Text style={styles.actionGhostText}>Guardar</Text>
+                <Text
+                  style={
+                    isSelectedPlaceSaved ? styles.actionSuccessText : styles.actionGhostText
+                  }
+                >
+                  {isLoadingSavedPlaces
+                    ? "Cargando..."
+                    : isTogglingSavedPlace
+                      ? "Guardando..."
+                      : isSelectedPlaceSaved
+                        ? "Quitar guardado"
+                        : "Guardar"}
+                </Text>
               </Pressable>
               <Pressable
                 style={[styles.actionBtn, styles.actionPrimary]}
@@ -1364,7 +1481,8 @@ export default function MapScreen({
 
                 <Pressable
                   style={styles.menuActionRow}
-                  onPress={() => Alert.alert("Proximo paso", "Aqui abriremos lugares guardados y favoritos.")}
+                  testID="open-saved-places-button"
+                  onPress={openSavedPlaces}
                 >
                   <Text style={styles.menuActionIcon}>★</Text>
                   <View style={styles.menuActionCopy}>
@@ -1376,7 +1494,9 @@ export default function MapScreen({
 
               <View style={styles.menuSection}>
                 <Text style={styles.menuSectionTitle}>Guardados</Text>
-                {savedPlaces.length > 0 ? (
+                {isLoadingSavedPlaces ? (
+                  <Text style={styles.menuEmptyText}>Cargando lugares guardados...</Text>
+                ) : savedPlaces.length > 0 ? (
                   savedPlaces.map((place) => (
                     <Pressable
                       key={place.id}
@@ -1710,8 +1830,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  actionDisabled: { opacity: 0.72 },
   actionGhost: { backgroundColor: "#e2e8f0" },
   actionGhostText: { color: "#0f172a", fontWeight: "700" },
+  actionSuccess: { backgroundColor: "#dcfce7" },
+  actionSuccessText: { color: "#166534", fontWeight: "800" },
   actionPrimary: { backgroundColor: "#0ea5e9" },
   actionPrimaryText: { color: "white", fontWeight: "800" },
   sheetHint: { paddingVertical: 12 },

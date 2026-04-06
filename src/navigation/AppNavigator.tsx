@@ -12,12 +12,19 @@ import AuthScreen from "../screens/AuthScreen";
 import MapScreen from "../screens/MapScreen";
 import PrivacyLegalScreen from "../screens/PrivacyLegalScreen";
 import ReportHistoryScreen from "../screens/ReportHistoryScreen";
+import SavedPlacesScreen from "../screens/SavedPlacesScreen";
 
 export type RootStackParamList = {
   Auth: undefined;
-  Map: undefined;
+  Map:
+    | {
+        focusPlaceId?: string;
+        focusPlaceRequestId?: number;
+      }
+    | undefined;
   PrivacyLegal: undefined;
   ReportHistory: undefined;
+  SavedPlaces: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -72,12 +79,15 @@ export default function AppNavigator() {
               name="Map"
               options={{ title: "ParkPulse" }}
             >
-              {({ navigation }) => (
+              {({ navigation, route }) => (
                 <MapScreen
                   currentUser={currentUser}
                   onSignOut={signOutCurrentUser}
                   onOpenPrivacyLegal={() => navigation.navigate("PrivacyLegal")}
                   onOpenReportHistory={() => navigation.navigate("ReportHistory")}
+                  onOpenSavedPlaces={() => navigation.navigate("SavedPlaces")}
+                  pendingFocusPlaceId={route.params?.focusPlaceId ?? null}
+                  pendingFocusRequestId={route.params?.focusPlaceRequestId ?? null}
                 />
               )}
             </Stack.Screen>
@@ -86,6 +96,22 @@ export default function AppNavigator() {
               options={{ title: "Historial de reportes" }}
             >
               {() => <ReportHistoryScreen currentUser={currentUser} />}
+            </Stack.Screen>
+            <Stack.Screen
+              name="SavedPlaces"
+              options={{ title: "Lugares guardados" }}
+            >
+              {({ navigation }) => (
+                <SavedPlacesScreen
+                  currentUser={currentUser}
+                  onOpenPlace={(placeId) =>
+                    navigation.navigate("Map", {
+                      focusPlaceId: placeId,
+                      focusPlaceRequestId: Date.now(),
+                    })
+                  }
+                />
+              )}
             </Stack.Screen>
             <Stack.Screen
               name="PrivacyLegal"

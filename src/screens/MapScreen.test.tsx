@@ -14,6 +14,10 @@ import {
   submitParkingReport,
 } from "../lib/reports";
 import type { AuthenticatedAppUser } from "../lib/auth";
+import {
+  fetchSavedPlaceIds,
+  toggleSavedPlaceForUser,
+} from "../lib/savedPlaces";
 
 jest.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: jest.fn(),
@@ -31,6 +35,12 @@ jest.mock("../lib/reports", () => ({
   fetchRecentReports: jest.fn(),
   fetchReportsForPlace: jest.fn(),
   submitParkingReport: jest.fn(),
+}));
+
+jest.mock("../lib/savedPlaces", () => ({
+  fetchSavedPlaceIds: jest.fn(),
+  toggleSavedPlaceForUser: jest.fn(),
+  mapSavedPlaces: jest.requireActual("../lib/savedPlaces").mapSavedPlaces,
 }));
 
 const basePlaces = [
@@ -186,6 +196,11 @@ describe("MapScreen", () => {
       reporterDisplayName: "Comunidad",
       source: "remote",
     });
+    (fetchSavedPlaceIds as jest.Mock).mockResolvedValue(["fallback-1", "fallback-2"]);
+    (toggleSavedPlaceForUser as jest.Mock).mockResolvedValue({
+      saved: true,
+      placeIds: ["fallback-1", "fallback-2"],
+    });
 
     (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
       status: "granted",
@@ -281,6 +296,25 @@ describe("MapScreen", () => {
     expect(onOpenReportHistory).toHaveBeenCalledTimes(1);
   });
 
+  it("opens saved places from the menu", async () => {
+    const onOpenSavedPlaces = jest.fn();
+    const screen = renderMapScreen({ onOpenSavedPlaces });
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-menu-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("open-saved-places-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-saved-places-button"));
+
+    expect(onOpenSavedPlaces).toHaveBeenCalledTimes(1);
+  });
+
   it("opens report validation options from the place sheet", async () => {
     const screen = renderMapScreen();
 
@@ -365,6 +399,30 @@ describe("MapScreen", () => {
     expect(Alert.alert).toHaveBeenCalledWith(
       "Estacionamiento guardado",
       expect.stringContaining("Nuevo estacionamiento")
+    );
+  });
+
+  it("toggles the saved state of the selected place", async () => {
+    (fetchSavedPlaceIds as jest.Mock).mockResolvedValue([]);
+    (toggleSavedPlaceForUser as jest.Mock).mockResolvedValue({
+      saved: true,
+      placeIds: ["fallback-1"],
+    });
+
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("toggle-save-place-button"));
+    });
+
+    expect(toggleSavedPlaceForUser).toHaveBeenCalledWith("user-1", "fallback-1");
+    expect(Alert.alert).toHaveBeenCalledWith(
+      "Lugar guardado",
+      expect.stringContaining("Centro - Plaza Patria")
     );
   });
 
