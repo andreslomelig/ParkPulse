@@ -43,14 +43,29 @@ import {
   toggleSavedPlaceForUser,
 } from "../lib/savedPlaces";
 import { fetchPlaceReviews, type ParkingPlaceReview } from "../lib/reviews";
+import {
+  getParkingDayHours,
+  hasParkingHours,
+  PARKING_WEEKDAY_LABELS,
+  PARKING_WEEKDAYS,
+  type ParkingHoursMap,
+  type ParkingWeekday,
+} from "../lib/parkingShared";
 
 type PermissionState = "unknown" | "granted" | "denied";
 type LatLng = { latitude: number; longitude: number };
 type ReportStatus = Exclude<ParkingStatus, "unknown">;
+type NewPlaceDayHoursDraft = {
+  open: string;
+  close: string;
+  isClosed: boolean;
+};
+type NewPlaceWeeklyHoursDraft = Record<ParkingWeekday, NewPlaceDayHoursDraft>;
 type NewPlaceDraft = {
   name: string;
   address: string;
   description: string;
+  weeklyHours: NewPlaceWeeklyHoursDraft;
   hourlyCostMin: string;
   hourlyCostMax: string;
   costNotes: string;
@@ -81,6 +96,15 @@ const REPORT_RADIUS_METERS = 200;
 const RECENT_REPORTS_LIMIT = 5;
 const PLACE_HISTORY_LIMIT = 4;
 const PLACE_REVIEWS_LIMIT = 25;
+const JS_DAY_TO_PARKING_WEEKDAY: Record<number, ParkingWeekday> = {
+  0: "sunday",
+  1: "monday",
+  2: "tuesday",
+  3: "wednesday",
+  4: "thursday",
+  5: "friday",
+  6: "saturday",
+};
 
 async function fetchMapOverviewData() {
   const [nextPlaces, nextReports] = await Promise.all([
@@ -92,10 +116,20 @@ async function fetchMapOverviewData() {
 }
 
 function createEmptyNewPlaceDraft(): NewPlaceDraft {
+  const weeklyHours = PARKING_WEEKDAYS.reduce((draft, day) => {
+    draft[day] = {
+      open: "",
+      close: "",
+      isClosed: false,
+    };
+    return draft;
+  }, {} as NewPlaceWeeklyHoursDraft);
+
   return {
     name: "",
     address: "",
     description: "",
+    weeklyHours,
     hourlyCostMin: "",
     hourlyCostMax: "",
     costNotes: "",
@@ -208,6 +242,60 @@ function parseOptionalNumberInput(value: string) {
 
   const parsedValue = Number(normalizedValue);
   return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function buildDraftHoursPayload(draft: NewPlaceDraft) {
+  const openingHours: ParkingHoursMap = {};
+  const closingHours: ParkingHoursMap = {};
+  let hasAnyValue = false;
+
+  for (const day of PARKING_WEEKDAYS) {
+    const dayDraft = draft.weeklyHours[day];
+    if (dayDraft.isClosed) {
+      openingHours[day] = null;
+      closingHours[day] = null;
+      hasAnyValue = true;
+      continue;
+    }
+
+    const openingValue = dayDraft.open.trim();
+    const closingValue = dayDraft.close.trim();
+    if (!openingValue && !closingValue) {
+      continue;
+    }
+
+    openingHours[day] = openingValue || null;
+    closingHours[day] = closingValue || null;
+    hasAnyValue = true;
+  }
+
+  return {
+    openingHours: hasAnyValue ? openingHours : null,
+    closingHours: hasAnyValue ? closingHours : null,
+  };
+}
+
+function formatPlaceHoursForDay(
+  place: ParkingPlace,
+  day: ParkingWeekday
+) {
+  const dayHours = getParkingDayHours(place.openingHours, place.closingHours, day);
+  if (dayHours.status === "closed") return "Cerrado";
+  if (dayHours.status === "open") {
+    return `${dayHours.opensAt} - ${dayHours.closesAt}`;
+  }
+
+  return "Por validar";
+}
+
+function getTodayHoursSummary(place: ParkingPlace) {
+  if (!hasParkingHours(place.openingHours, place.closingHours)) {
+    return "Horario por validar";
+  }
+
+  const today = JS_DAY_TO_PARKING_WEEKDAY[new Date().getDay()] ?? "monday";
+  const label = formatPlaceHoursForDay(place, today);
+  return `Hoy: ${label}`;
 }
 
 function getDraftCostType(draft: NewPlaceDraft) {
@@ -782,6 +870,41 @@ export default function MapScreen({
     setNewPlaceDraft(createEmptyNewPlaceDraft());
   };
 
+  const onToggleDraftDayClosed = (day: ParkingWeekday) => {
+    setNewPlaceDraft((prev) => {
+      const nextIsClosed = !prev.weeklyHours[day].isClosed;
+      return {
+        ...prev,
+        weeklyHours: {
+          ...prev.weeklyHours,
+          [day]: {
+            open: "",
+            close: "",
+            isClosed: nextIsClosed,
+          },
+        },
+      };
+    });
+  };
+
+  const onChangeDraftDayHour = (
+    day: ParkingWeekday,
+    field: "open" | "close",
+    value: string
+  ) => {
+    setNewPlaceDraft((prev) => ({
+      ...prev,
+      weeklyHours: {
+        ...prev.weeklyHours,
+        [day]: {
+          ...prev.weeklyHours[day],
+          isClosed: false,
+          [field]: value,
+        },
+      },
+    }));
+  };
+
   const handleAddPlaceSheetChange = (index: number) => {
     setAddPlaceSheetIndex(index);
 
@@ -809,6 +932,7 @@ export default function MapScreen({
 
     try {
       setIsSavingPlace(true);
+      const { openingHours, closingHours } = buildDraftHoursPayload(newPlaceDraft);
 
       const createdPlace = await createParkingPlace({
         name: newPlaceDraft.name,
@@ -816,6 +940,8 @@ export default function MapScreen({
         description: newPlaceDraft.description,
         latitude: coord.latitude,
         longitude: coord.longitude,
+        openingHours,
+        closingHours,
         costType: getDraftCostType(newPlaceDraft),
         hourlyCostMin: parseOptionalNumberInput(newPlaceDraft.hourlyCostMin),
         hourlyCostMax: parseOptionalNumberInput(newPlaceDraft.hourlyCostMax),
@@ -1179,6 +1305,85 @@ export default function MapScreen({
               />
             </View>
 
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>Horario semanal</Text>
+              <Text style={styles.formHelperText}>
+                Usa formato HH:MM. Si un dia no abre, marcalo como cerrado.
+              </Text>
+              <View style={styles.scheduleCard}>
+                {PARKING_WEEKDAYS.map((day) => {
+                  const dayDraft = newPlaceDraft.weeklyHours[day];
+                  return (
+                    <View key={day} style={styles.scheduleRow}>
+                      <View style={styles.scheduleRowHeader}>
+                        <Text style={styles.scheduleDayLabel}>
+                          {PARKING_WEEKDAY_LABELS[day]}
+                        </Text>
+                        <Pressable
+                          testID={`new-place-${day}-closed-toggle`}
+                          style={[
+                            styles.scheduleClosedChip,
+                            dayDraft.isClosed && styles.scheduleClosedChipActive,
+                          ]}
+                          onPress={() => onToggleDraftDayClosed(day)}
+                        >
+                          <Text
+                            style={[
+                              styles.scheduleClosedChipText,
+                              dayDraft.isClosed && styles.scheduleClosedChipTextActive,
+                            ]}
+                          >
+                            {dayDraft.isClosed ? "Cerrado" : "Abierto"}
+                          </Text>
+                        </Pressable>
+                      </View>
+
+                      {dayDraft.isClosed ? (
+                        <Text style={styles.scheduleClosedHint}>
+                          Sin atencion ese dia.
+                        </Text>
+                      ) : (
+                        <View style={styles.formRow}>
+                          <View style={styles.formColumn}>
+                            <Text style={styles.inputLabel}>Abre</Text>
+                            <TextInput
+                              testID={`new-place-${day}-open-input`}
+                              value={dayDraft.open}
+                              onChangeText={(value) =>
+                                onChangeDraftDayHour(day, "open", value)
+                              }
+                              placeholder="08:00"
+                              placeholderTextColor="#94a3b8"
+                              autoCapitalize="none"
+                              keyboardType="numbers-and-punctuation"
+                              maxLength={5}
+                              style={styles.textField}
+                            />
+                          </View>
+                          <View style={styles.formColumn}>
+                            <Text style={styles.inputLabel}>Cierra</Text>
+                            <TextInput
+                              testID={`new-place-${day}-close-input`}
+                              value={dayDraft.close}
+                              onChangeText={(value) =>
+                                onChangeDraftDayHour(day, "close", value)
+                              }
+                              placeholder="22:00"
+                              placeholderTextColor="#94a3b8"
+                              autoCapitalize="none"
+                              keyboardType="numbers-and-punctuation"
+                              maxLength={5}
+                              style={styles.textField}
+                            />
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
             <View style={styles.formRow}>
               <View style={styles.formColumn}>
                 <Text style={styles.inputLabel}>Costo min/h</Text>
@@ -1425,6 +1630,43 @@ export default function MapScreen({
               <View style={styles.detailTile}>
                 <Text style={styles.detailLabel}>Acceso</Text>
                 <Text style={styles.detailValue}>{getAccessTypeLabel(selectedPlace.accessType)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.hoursSection}>
+              <View style={styles.photoHeaderRow}>
+                <Text style={styles.sectionTitle}>Horario semanal</Text>
+                <Text style={styles.sectionAction}>{getTodayHoursSummary(selectedPlace)}</Text>
+              </View>
+              <View style={styles.hoursCard}>
+                {PARKING_WEEKDAYS.map((day) => {
+                  const dayHours = getParkingDayHours(
+                    selectedPlace.openingHours,
+                    selectedPlace.closingHours,
+                    day
+                  );
+                  const value =
+                    dayHours.status === "open"
+                      ? `${dayHours.opensAt} - ${dayHours.closesAt}`
+                      : dayHours.status === "closed"
+                        ? "Cerrado"
+                        : "Por validar";
+
+                  return (
+                    <View key={day} style={styles.hoursRow}>
+                      <Text style={styles.hoursDayLabel}>{PARKING_WEEKDAY_LABELS[day]}</Text>
+                      <Text
+                        style={[
+                          styles.hoursValue,
+                          dayHours.status === "closed" && styles.hoursValueClosed,
+                          dayHours.status === "unknown" && styles.hoursValueUnknown,
+                        ]}
+                      >
+                        {value}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             </View>
 
@@ -2064,6 +2306,40 @@ const styles = StyleSheet.create({
   photoCardTitle: { fontSize: 14, color: "#0f172a", fontWeight: "800" },
   photoCardBody: { marginTop: 4, fontSize: 12, lineHeight: 16, color: "#334155", fontWeight: "500" },
   historySection: { marginTop: 18 },
+  hoursSection: { marginTop: 18 },
+  hoursCard: {
+    marginTop: 12,
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  hoursRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eef2f7",
+  },
+  hoursDayLabel: {
+    fontSize: 14,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  hoursValue: {
+    fontSize: 14,
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  hoursValueClosed: {
+    color: "#b45309",
+  },
+  hoursValueUnknown: {
+    color: "#64748b",
+    fontWeight: "700",
+  },
   historyRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -2244,9 +2520,63 @@ const styles = StyleSheet.create({
   sheetHeroDraftLabel: { fontSize: 16, color: "#0f172a", fontWeight: "800" },
   sheetHeroDraftMeta: { marginTop: 6, fontSize: 13, lineHeight: 18, color: "#155e75", fontWeight: "500" },
   formGroup: { marginTop: 14 },
+  formHelperText: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#64748b",
+    fontWeight: "500",
+  },
   formRow: { marginTop: 14, flexDirection: "row", gap: 10 },
   formColumn: { flex: 1 },
   inputLabel: { marginBottom: 6, fontSize: 12, color: "#475569", fontWeight: "800", textTransform: "uppercase" },
+  scheduleCard: {
+    marginTop: 12,
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#dbe4ee",
+  },
+  scheduleRow: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eef2f7",
+  },
+  scheduleRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  scheduleDayLabel: {
+    fontSize: 14,
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  scheduleClosedChip: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: "#e2e8f0",
+  },
+  scheduleClosedChipActive: {
+    backgroundColor: "#fee2e2",
+  },
+  scheduleClosedChipText: {
+    fontSize: 12,
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  scheduleClosedChipTextActive: {
+    color: "#b91c1c",
+  },
+  scheduleClosedHint: {
+    marginTop: 10,
+    fontSize: 13,
+    color: "#b45309",
+    fontWeight: "700",
+  },
   textField: {
     minHeight: 48,
     backgroundColor: "#ffffff",

@@ -1,14 +1,18 @@
 import { getCommunitySessionId } from "./communitySession";
 import {
   clampLimit,
+  isParkingWeekday,
   normalizeAccessType,
   normalizeCapacityConfidence,
   normalizeCostType,
   normalizeCurrencyCode,
   normalizeParkingStatus,
+  PARKING_WEEKDAY_LABELS,
+  PARKING_WEEKDAYS,
   toInteger,
   toNumber,
   toTrimmedString,
+  type ParkingHoursMap,
   type ParkingPlace,
 } from "./parkingShared";
 import { getSupabaseClient, requireSupabaseClient } from "./supabase";
@@ -27,6 +31,8 @@ export type CreateParkingPlaceInput = {
   longitude: number;
   description?: string | null;
   address?: string | null;
+  openingHours?: ParkingHoursMap | null;
+  closingHours?: ParkingHoursMap | null;
   costType?: string | null;
   currencyCode?: string | null;
   hourlyCostMin?: number | null;
@@ -44,6 +50,8 @@ type RawPlace = {
   name?: string | null;
   description?: string | null;
   address?: string | null;
+  opening_hours?: unknown;
+  closing_hours?: unknown;
   latitude?: number | string | null;
   longitude?: number | string | null;
   lat?: number | string | null;
@@ -73,6 +81,8 @@ const LIVE_PLACE_SELECT = [
   "name",
   "description",
   "address",
+  "opening_hours",
+  "closing_hours",
   "latitude",
   "longitude",
   "cost_type",
@@ -110,6 +120,8 @@ const BASE_PLACE_SELECT = [
   "name",
   "description",
   "address",
+  "opening_hours",
+  "closing_hours",
   "latitude",
   "longitude",
   "cost_type",
@@ -140,6 +152,24 @@ const fallbackPlaces: ParkingPlace[] = [
     name: "Plaza Patria",
     description: "Plaza comercial del centro historico con estacionamiento de uso comercial.",
     address: "Centro Comercial Plaza Patria, 5 de Mayo, Zona Centro, 20000 Aguascalientes, Ags.",
+    openingHours: {
+      monday: "08:00",
+      tuesday: "08:00",
+      wednesday: "08:00",
+      thursday: "08:00",
+      friday: "08:00",
+      saturday: "08:00",
+      sunday: "09:00",
+    },
+    closingHours: {
+      monday: "22:00",
+      tuesday: "22:00",
+      wednesday: "22:00",
+      thursday: "22:00",
+      friday: "22:00",
+      saturday: "22:00",
+      sunday: "20:00",
+    },
     latitude: 21.8790925,
     longitude: -102.2965229,
     status: "available",
@@ -165,6 +195,24 @@ const fallbackPlaces: ParkingPlace[] = [
     name: "Estadio Victoria",
     description: "Estadio de futbol con estacionamiento para dias de partido y eventos.",
     address: "Calle Privada Jose Marin Iglesias, Colonia Heroes, 20259 Aguascalientes, Ags.",
+    openingHours: {
+      monday: null,
+      tuesday: null,
+      wednesday: null,
+      thursday: null,
+      friday: "17:00",
+      saturday: "15:00",
+      sunday: "12:00",
+    },
+    closingHours: {
+      monday: null,
+      tuesday: null,
+      wednesday: null,
+      thursday: null,
+      friday: "23:00",
+      saturday: "23:00",
+      sunday: "22:00",
+    },
     latitude: 21.8806558,
     longitude: -102.2754788,
     status: "full",
@@ -190,6 +238,24 @@ const fallbackPlaces: ParkingPlace[] = [
     name: "Centro Comercial Altaria",
     description: "Centro comercial al norte de la ciudad con estacionamiento para visitantes.",
     address: "Boulevard a Zacatecas Km. 537, Trojes de Alonso, 20116 Aguascalientes, Ags.",
+    openingHours: {
+      monday: "10:00",
+      tuesday: "10:00",
+      wednesday: "10:00",
+      thursday: "10:00",
+      friday: "10:00",
+      saturday: "10:00",
+      sunday: "11:00",
+    },
+    closingHours: {
+      monday: "22:00",
+      tuesday: "22:00",
+      wednesday: "22:00",
+      thursday: "22:00",
+      friday: "23:00",
+      saturday: "23:00",
+      sunday: "21:00",
+    },
     latitude: 21.9237481,
     longitude: -102.2892982,
     status: "unknown",
@@ -216,6 +282,150 @@ function isMissingSchemaFieldError(message: string) {
   return message.includes("does not exist");
 }
 
+function normalizeHourText(value: unknown): string | null | undefined {
+  const trimmedValue = toTrimmedString(value);
+  if (!trimmedValue) return null;
+
+  const compactValue = trimmedValue.replace(/\s+/g, "").replace(/[.,]/g, ":");
+  const match = compactValue.match(/^(\d{1,2})(?::?(\d{2}))$/);
+  if (!match) return undefined;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return undefined;
+  }
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function toParkingHoursMap(value: unknown): ParkingHoursMap | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const nextMap: ParkingHoursMap = {};
+  let hasAnyValue = false;
+
+  for (const [day, rawValue] of Object.entries(value as Record<string, unknown>)) {
+    if (!isParkingWeekday(day)) continue;
+
+    if (rawValue === null) {
+      nextMap[day] = null;
+      hasAnyValue = true;
+      continue;
+    }
+
+    const normalizedHour = normalizeHourText(rawValue);
+    if (!normalizedHour) continue;
+
+    nextMap[day] = normalizedHour;
+    hasAnyValue = true;
+  }
+
+  return hasAnyValue ? nextMap : null;
+}
+
+function normalizeParkingHours(
+  openingHoursInput: unknown,
+  closingHoursInput: unknown
+) {
+  const openingIsMissing =
+    openingHoursInput === null || openingHoursInput === undefined;
+  const closingIsMissing =
+    closingHoursInput === null || closingHoursInput === undefined;
+
+  if (openingIsMissing && closingIsMissing) {
+    return {
+      openingHours: null,
+      closingHours: null,
+    };
+  }
+
+  if (openingIsMissing || closingIsMissing) {
+    throw new Error("El horario semanal necesita apertura y cierre por dia.");
+  }
+
+  if (
+    typeof openingHoursInput !== "object" ||
+    Array.isArray(openingHoursInput) ||
+    typeof closingHoursInput !== "object" ||
+    Array.isArray(closingHoursInput)
+  ) {
+    throw new Error("El horario semanal del estacionamiento es invalido.");
+  }
+
+  const rawOpeningHours = openingHoursInput as Record<string, unknown>;
+  const rawClosingHours = closingHoursInput as Record<string, unknown>;
+  const invalidDay = [...Object.keys(rawOpeningHours), ...Object.keys(rawClosingHours)].find(
+    (day) => !isParkingWeekday(day)
+  );
+  if (invalidDay) {
+    throw new Error("El horario semanal contiene dias invalidos.");
+  }
+
+  const normalizedOpeningHours: ParkingHoursMap = {};
+  const normalizedClosingHours: ParkingHoursMap = {};
+  let hasAnyValue = false;
+
+  for (const day of PARKING_WEEKDAYS) {
+    const openingHasValue = Object.prototype.hasOwnProperty.call(rawOpeningHours, day);
+    const closingHasValue = Object.prototype.hasOwnProperty.call(rawClosingHours, day);
+    if (!openingHasValue && !closingHasValue) continue;
+
+    const dayLabel = PARKING_WEEKDAY_LABELS[day].toLowerCase();
+    if (openingHasValue !== closingHasValue) {
+      throw new Error(`Completa tanto la apertura como el cierre del ${dayLabel}.`);
+    }
+
+    const rawOpeningValue = rawOpeningHours[day];
+    const rawClosingValue = rawClosingHours[day];
+
+    if (rawOpeningValue === null && rawClosingValue === null) {
+      normalizedOpeningHours[day] = null;
+      normalizedClosingHours[day] = null;
+      hasAnyValue = true;
+      continue;
+    }
+
+    const normalizedOpeningValue = normalizeHourText(rawOpeningValue);
+    const normalizedClosingValue = normalizeHourText(rawClosingValue);
+
+    if (
+      normalizedOpeningValue === undefined ||
+      normalizedClosingValue === undefined
+    ) {
+      throw new Error(`Usa formato HH:MM para el horario del ${dayLabel}.`);
+    }
+
+    if (normalizedOpeningValue === null || normalizedClosingValue === null) {
+      throw new Error(`Completa tanto la apertura como el cierre del ${dayLabel}.`);
+    }
+
+    if (normalizedClosingValue <= normalizedOpeningValue) {
+      throw new Error(
+        `La hora de cierre del ${dayLabel} debe ser posterior a la de apertura.`
+      );
+    }
+
+    normalizedOpeningHours[day] = normalizedOpeningValue;
+    normalizedClosingHours[day] = normalizedClosingValue;
+    hasAnyValue = true;
+  }
+
+  return {
+    openingHours: hasAnyValue ? normalizedOpeningHours : null,
+    closingHours: hasAnyValue ? normalizedClosingHours : null,
+  };
+}
+
 export function normalizeCreateParkingPlaceInput(
   input: CreateParkingPlaceInput
 ) {
@@ -226,6 +436,10 @@ export function normalizeCreateParkingPlaceInput(
   const hourlyCostMax = toNumber(input.hourlyCostMax);
   const capacityMin = toInteger(input.capacityMin);
   const capacityMax = toInteger(input.capacityMax);
+  const { openingHours, closingHours } = normalizeParkingHours(
+    input.openingHours,
+    input.closingHours
+  );
 
   if (!name) {
     throw new Error("El nombre del estacionamiento es obligatorio.");
@@ -253,6 +467,8 @@ export function normalizeCreateParkingPlaceInput(
     longitude,
     description: toTrimmedString(input.description),
     address: toTrimmedString(input.address),
+    openingHours,
+    closingHours,
     costType: normalizeCostType(input.costType),
     currencyCode: normalizeCurrencyCode(input.currencyCode),
     hourlyCostMin,
@@ -277,6 +493,8 @@ function mapRawPlace(place: RawPlace): ParkingPlace | null {
     name: toTrimmedString(place.name) ?? "Estacionamiento",
     description: toTrimmedString(place.description),
     address: toTrimmedString(place.address),
+    openingHours: toParkingHoursMap(place.opening_hours),
+    closingHours: toParkingHoursMap(place.closing_hours),
     latitude,
     longitude,
     status: normalizeParkingStatus(
@@ -426,6 +644,8 @@ export async function createParkingPlace(
     input_longitude: normalizedInput.longitude,
     input_description: normalizedInput.description,
     input_address: normalizedInput.address,
+    input_opening_hours: normalizedInput.openingHours,
+    input_closing_hours: normalizedInput.closingHours,
     input_cost_type: normalizedInput.costType,
     input_currency_code: normalizedInput.currencyCode,
     input_hourly_cost_min: normalizedInput.hourlyCostMin,

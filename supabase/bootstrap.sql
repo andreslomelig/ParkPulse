@@ -19,6 +19,121 @@ begin
 end;
 $$;
 
+create or replace function public.is_valid_hour_text(input text)
+returns boolean
+language sql
+immutable
+as $$
+  select coalesce(input ~ '^(?:[01]\d|2[0-3]):[0-5]\d$', false);
+$$;
+
+create or replace function public.is_valid_weekly_hour_map(input jsonb)
+returns boolean
+language sql
+immutable
+as $$
+  select
+    input is null
+    or (
+      jsonb_typeof(input) = 'object'
+      and not exists (
+        select 1
+        from jsonb_each(input) as entry(day_name, day_value)
+        where day_name not in (
+          'monday',
+          'tuesday',
+          'wednesday',
+          'thursday',
+          'friday',
+          'saturday',
+          'sunday'
+        )
+          or (
+            jsonb_typeof(day_value) <> 'null'
+            and (
+              jsonb_typeof(day_value) <> 'string'
+              or not public.is_valid_hour_text(day_value #>> '{}')
+            )
+          )
+      )
+    );
+$$;
+
+create or replace function public.are_valid_place_hours(
+  input_opening_hours jsonb,
+  input_closing_hours jsonb
+)
+returns boolean
+language plpgsql
+immutable
+as $$
+declare
+  day_name text;
+  opening_exists boolean;
+  closing_exists boolean;
+  opening_value text;
+  closing_value text;
+begin
+  if input_opening_hours is null and input_closing_hours is null then
+    return true;
+  end if;
+
+  if input_opening_hours is null or input_closing_hours is null then
+    return false;
+  end if;
+
+  if jsonb_typeof(input_opening_hours) <> 'object' then
+    return false;
+  end if;
+
+  if jsonb_typeof(input_closing_hours) <> 'object' then
+    return false;
+  end if;
+
+  for day_name in
+    select unnest(
+      array[
+        'monday',
+        'tuesday',
+        'wednesday',
+        'thursday',
+        'friday',
+        'saturday',
+        'sunday'
+      ]::text[]
+    )
+  loop
+    opening_exists := input_opening_hours ? day_name;
+    closing_exists := input_closing_hours ? day_name;
+
+    if opening_exists <> closing_exists then
+      return false;
+    end if;
+
+    if not opening_exists then
+      continue;
+    end if;
+
+    opening_value := input_opening_hours ->> day_name;
+    closing_value := input_closing_hours ->> day_name;
+
+    if opening_value is null and closing_value is null then
+      continue;
+    end if;
+
+    if opening_value is null or closing_value is null then
+      return false;
+    end if;
+
+    if opening_value >= closing_value then
+      return false;
+    end if;
+  end loop;
+
+  return true;
+end;
+$$;
+
 create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
@@ -207,6 +322,8 @@ create table if not exists public.places (
   name text not null,
   description text null,
   address text null,
+  opening_hours jsonb null,
+  closing_hours jsonb null,
   latitude double precision not null,
   longitude double precision not null,
   cost_type text not null default 'unknown'
@@ -256,6 +373,12 @@ alter table public.places
 
 alter table public.places
   add column if not exists address text null;
+
+alter table public.places
+  add column if not exists opening_hours jsonb null;
+
+alter table public.places
+  add column if not exists closing_hours jsonb null;
 
 alter table public.places
   add column if not exists cost_type text not null default 'unknown';
@@ -323,6 +446,39 @@ begin
     alter table public.places
       add constraint places_access_type_check
       check (access_type in ('public', 'private', 'mixed', 'unknown'));
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'places_opening_hours_check'
+      and conrelid = 'public.places'::regclass
+  ) then
+    alter table public.places
+      add constraint places_opening_hours_check
+      check (public.is_valid_weekly_hour_map(opening_hours));
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'places_closing_hours_check'
+      and conrelid = 'public.places'::regclass
+  ) then
+    alter table public.places
+      add constraint places_closing_hours_check
+      check (public.is_valid_weekly_hour_map(closing_hours));
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'places_hours_consistency_check'
+      and conrelid = 'public.places'::regclass
+  ) then
+    alter table public.places
+      add constraint places_hours_consistency_check
+      check (public.are_valid_place_hours(opening_hours, closing_hours));
   end if;
 end $$;
 
@@ -594,6 +750,8 @@ select
   place.name,
   place.description,
   place.address,
+  place.opening_hours,
+  place.closing_hours,
   place.latitude,
   place.longitude,
   place.cost_type,
@@ -749,12 +907,32 @@ $$;
 
 grant execute on function public.upsert_place_rating(uuid, integer, text, text) to anon, authenticated;
 
+drop function if exists public.create_place(
+  text,
+  double precision,
+  double precision,
+  text,
+  text,
+  text,
+  text,
+  numeric,
+  numeric,
+  text,
+  integer,
+  integer,
+  text,
+  text,
+  text
+);
+
 create or replace function public.create_place(
   input_name text,
   input_latitude double precision,
   input_longitude double precision,
   input_description text default null,
   input_address text default null,
+  input_opening_hours jsonb default null,
+  input_closing_hours jsonb default null,
   input_cost_type text default 'unknown',
   input_currency_code text default 'MXN',
   input_hourly_cost_min numeric default null,
@@ -787,6 +965,8 @@ begin
     name,
     description,
     address,
+    opening_hours,
+    closing_hours,
     latitude,
     longitude,
     cost_type,
@@ -806,6 +986,8 @@ begin
     input_name,
     input_description,
     input_address,
+    input_opening_hours,
+    input_closing_hours,
     input_latitude,
     input_longitude,
     input_cost_type,
@@ -830,7 +1012,7 @@ begin
 end;
 $$;
 
-grant execute on function public.create_place(text, double precision, double precision, text, text, text, text, numeric, numeric, text, integer, integer, text, text, text) to anon, authenticated;
+grant execute on function public.create_place(text, double precision, double precision, text, text, jsonb, jsonb, text, text, numeric, numeric, text, integer, integer, text, text, text) to anon, authenticated;
 
 create or replace function public.create_place_report(
   input_place_id uuid,
@@ -933,6 +1115,8 @@ insert into public.places (
   name,
   description,
   address,
+  opening_hours,
+  closing_hours,
   latitude,
   longitude,
   cost_type,
@@ -950,6 +1134,8 @@ select
   seed.name::text,
   seed.description::text,
   seed.address::text,
+  hours.opening_hours::jsonb,
+  hours.closing_hours::jsonb,
   seed.latitude::double precision,
   seed.longitude::double precision,
   seed.cost_type::text,
@@ -964,26 +1150,26 @@ select
   now()
 from (
   values
-    ('Centro Comercial Altaria', 'Centro comercial al norte de la ciudad con estacionamiento para visitantes.', 'Boulevard a Zacatecas Km. 537, Trojes de Alonso, 20116 Aguascalientes, Ags.', 21.9237481, -102.2892982, 'mixed', 0.00, 25.00, 'Primeras 2 horas gratis con compra; despues aplica tarifa progresiva.', 850, 1200, 'range', 'mixed', 'unknown'),
-    ('Plaza Patria', 'Plaza comercial del centro historico con estacionamiento de uso comercial.', 'Centro Comercial Plaza Patria, 5 de Mayo, Zona Centro, 20000 Aguascalientes, Ags.', 21.8790925, -102.2965229, 'paid', 18.00, 28.00, 'Tarifa por hora en estacionamiento del centro con alta rotacion.', 220, 320, 'range', 'mixed', 'unknown'),
-    ('Plaza Universidad', 'Plaza comercial sobre Av. Universidad con estacionamiento para visitantes.', 'Avenida Universidad 935, Bosques del Prado, Aguascalientes, Ags.', 21.9152932, -102.3121020, 'mixed', 0.00, 22.00, 'Primeros 90 minutos sin costo durante horario comercial.', 180, 260, 'range', 'mixed', 'unknown'),
-    ('Plaza Vestir', 'Plaza comercial textil con estacionamiento de superficie.', 'Avenida Jose Maria Chavez 1940, Ciudad Industrial, 20290 Aguascalientes, Ags.', 21.8395818, -102.2890587, 'paid', 15.00, 25.00, 'Tarifa preferente para visitas cortas con tope por jornada.', 140, 220, 'range', 'mixed', 'unknown'),
-    ('Centro Comercial El Dorado', 'Centro comercial de servicios al sur-oriente con estacionamiento para clientes.', 'Avenida Las Americas 1701, Valle Dorado, 20235 Aguascalientes, Ags.', 21.8627607, -102.3046255, 'mixed', 0.00, 20.00, 'Primer tramo gratis para clientes; despues cobro moderado.', 160, 240, 'range', 'mixed', 'unknown'),
-    ('Centro Comercial El Parian', 'Plaza comercial del centro con estacionamiento rotativo.', 'Rivero y Gutierrez 29, Zona Centro, 20000 Aguascalientes, Ags.', 21.8831891, -102.2956326, 'paid', 17.00, 27.00, 'Cobro por hora con demanda alta en fines de semana.', 90, 140, 'range', 'mixed', 'unknown'),
-    ('ExpoPlaza', 'Plaza y recinto comercial junto a la zona ferial.', 'Barrio de San Marcos, 20070 Aguascalientes, Ags.', 21.8760782, -102.3058642, 'paid', 25.00, 40.00, 'Tarifa variable por evento y temporada ferial.', 260, 420, 'estimated', 'mixed', 'unknown'),
-    ('Centro Comercial Galerias', 'Centro comercial con estacionamiento de alta afluencia al norte.', 'Avenida Independencia 2351, Trojes de Alonso, 20311 Aguascalientes, Ags.', 21.9235343, -102.2949220, 'mixed', 0.00, 24.00, 'Primeras 2 horas gratis con consumo en varias zonas comerciales.', 700, 950, 'range', 'mixed', 'unknown'),
-    ('Patio Aguascalientes', 'Centro comercial sobre Jose Maria Chavez con estacionamiento amplio.', 'Calle Jose Maria Chavez 1531, Agricultura, 20234 Aguascalientes, Ags.', 21.8584720, -102.2940333, 'mixed', 0.00, 22.00, 'Primeros 90 minutos sin costo; despues tarifa fija por hora.', 380, 560, 'range', 'mixed', 'unknown'),
-    ('Plaza Boreal', 'Plaza comercial al sur de la ciudad con estacionamiento de superficie.', 'Carretera Panamericana Sur Km. 11, Ejido Penuelas, 20349 Aguascalientes, Ags.', 21.7304301, -102.2784343, 'mixed', 0.00, 20.00, 'Primeras 2 horas gratis; tarifa reducida el resto del dia.', 240, 360, 'range', 'mixed', 'unknown'),
-    ('Soriana Plaza San Marcos', 'Centro comercial con supermercado y estacionamiento para visitantes.', 'Avenida Convencion esq. Fundicion 2301, San Cayetano, 20010 Aguascalientes, Ags.', 21.8965746, -102.3105326, 'mixed', 0.00, 18.00, 'Tiempo de cortesia para clientes; cobro en estancias largas.', 280, 420, 'range', 'mixed', 'unknown'),
-    ('Plaza de Toros Monumental de Aguascalientes', 'Recinto de espectaculos con estacionamiento para eventos.', 'Rafael Rodriguez Dominguez, Barrio de San Marcos, 20070 Aguascalientes, Ags.', 21.8749812, -102.3068258, 'paid', 30.00, 50.00, 'Cobro por evento; sube durante feria y fines de semana.', 450, 700, 'estimated', 'public', 'unknown'),
-    ('Chedraui Villa Asuncion', 'Tienda ancla con estacionamiento dentro de Villa Asuncion.', 'Avenida Mahatma Gandhi, Centro Comercial Villa Asuncion, 20288 Aguascalientes, Ags.', 21.8552107, -102.2938853, 'mixed', 0.00, 18.00, 'Tiempo de cortesia para compras con tope diario accesible.', 260, 380, 'range', 'mixed', 'unknown'),
-    ('Costco Aguascalientes', 'Tienda mayorista con estacionamiento amplio para socios y visitantes.', 'Avenida Aguascalientes Norte, 20350 Aguascalientes, Ags.', 21.9160424, -102.2879966, 'free', 0.00, 0.00, 'Sin costo dentro del horario de tienda para socios y visitantes autorizados.', 500, 750, 'range', 'mixed', 'unknown'),
-    ('Centro Comercial Agropecuario', 'Centro comercial y de abasto con estacionamiento y alto flujo diario.', 'Calle Manzano, 20135 Aguascalientes, Ags.', 21.9148913, -102.2930212, 'paid', 12.00, 20.00, 'Cobro economico con alta rotacion en horas pico.', 600, 900, 'estimated', 'mixed', 'unknown'),
-    ('Isla San Marcos', 'Recinto ferial y de eventos con estacionamiento de superficie.', 'Isla San Marcos, Aguascalientes, Ags.', 21.8613583, -102.3214750, 'paid', 30.00, 60.00, 'Tarifa por evento; en temporada alta se habilitan bolsas adicionales.', 900, 1400, 'estimated', 'public', 'unknown'),
-    ('Foro de Las Estrellas', 'Foro de conciertos de la feria con estacionamiento por evento.', 'Bulevar San Marcos 504, Colonia Espana, 20210 Aguascalientes, Ags.', 21.8717049, -102.3099982, 'paid', 35.00, 60.00, 'Tarifa por concierto o evento con permanencia limitada.', 700, 1100, 'estimated', 'public', 'unknown'),
-    ('Estadio Victoria', 'Estadio de futbol con estacionamiento para dias de partido y eventos.', 'Calle Privada Jose Marin Iglesias, Colonia Heroes, 20259 Aguascalientes, Ags.', 21.8806558, -102.2754788, 'paid', 30.00, 55.00, 'Tarifa de evento; en dias sin partido opera con acceso restringido.', 600, 950, 'estimated', 'public', 'unknown'),
-    ('Museo Descubre', 'Museo interactivo con estacionamiento para visitantes.', 'Avenida del Parque, 20277 Aguascalientes, Ags.', 21.8561749, -102.2892588, 'paid', 10.00, 18.00, 'Tarifa baja para visitas familiares y recorridos de media estancia.', 120, 200, 'range', 'public', 'unknown'),
-    ('Teatro Aguascalientes', 'Teatro y centro cultural con estacionamiento para funciones.', 'Avenida Jose Maria Chavez, 20284 Aguascalientes, Ags.', 21.8570590, -102.2912076, 'paid', 18.00, 30.00, 'Tarifa por funcion y eventos culturales nocturnos.', 180, 280, 'range', 'public', 'unknown')
+    ('Centro Comercial Altaria', 'Centro comercial al norte de la ciudad con estacionamiento para visitantes.', 'Boulevard a Zacatecas Km. 537, Trojes de Alonso, 20116 Aguascalientes, Ags.', 21.9237481, -102.2892982, 'mixed', 0.00, 25.00, 'Primeras 2 horas gratis con compra; despues aplica tarifa progresiva.', 850, 1200, 'range', 'mixed', 'unknown', 'mall_premium'),
+    ('Plaza Patria', 'Plaza comercial del centro historico con estacionamiento de uso comercial.', 'Centro Comercial Plaza Patria, 5 de Mayo, Zona Centro, 20000 Aguascalientes, Ags.', 21.8790925, -102.2965229, 'paid', 18.00, 28.00, 'Tarifa por hora en estacionamiento del centro con alta rotacion.', 220, 320, 'range', 'mixed', 'unknown', 'downtown_commercial'),
+    ('Plaza Universidad', 'Plaza comercial sobre Av. Universidad con estacionamiento para visitantes.', 'Avenida Universidad 935, Bosques del Prado, Aguascalientes, Ags.', 21.9152932, -102.3121020, 'mixed', 0.00, 22.00, 'Primeros 90 minutos sin costo durante horario comercial.', 180, 260, 'range', 'mixed', 'unknown', 'university_plaza'),
+    ('Plaza Vestir', 'Plaza comercial textil con estacionamiento de superficie.', 'Avenida Jose Maria Chavez 1940, Ciudad Industrial, 20290 Aguascalientes, Ags.', 21.8395818, -102.2890587, 'paid', 15.00, 25.00, 'Tarifa preferente para visitas cortas con tope por jornada.', 140, 220, 'range', 'mixed', 'unknown', 'textile_market'),
+    ('Centro Comercial El Dorado', 'Centro comercial de servicios al sur-oriente con estacionamiento para clientes.', 'Avenida Las Americas 1701, Valle Dorado, 20235 Aguascalientes, Ags.', 21.8627607, -102.3046255, 'mixed', 0.00, 20.00, 'Primer tramo gratis para clientes; despues cobro moderado.', 160, 240, 'range', 'mixed', 'unknown', 'neighborhood_plaza'),
+    ('Centro Comercial El Parian', 'Plaza comercial del centro con estacionamiento rotativo.', 'Rivero y Gutierrez 29, Zona Centro, 20000 Aguascalientes, Ags.', 21.8831891, -102.2956326, 'paid', 17.00, 27.00, 'Cobro por hora con demanda alta en fines de semana.', 90, 140, 'range', 'mixed', 'unknown', 'downtown_commercial'),
+    ('ExpoPlaza', 'Plaza y recinto comercial junto a la zona ferial.', 'Barrio de San Marcos, 20070 Aguascalientes, Ags.', 21.8760782, -102.3058642, 'paid', 25.00, 40.00, 'Tarifa variable por evento y temporada ferial.', 260, 420, 'estimated', 'mixed', 'unknown', 'fair_commercial'),
+    ('Centro Comercial Galerias', 'Centro comercial con estacionamiento de alta afluencia al norte.', 'Avenida Independencia 2351, Trojes de Alonso, 20311 Aguascalientes, Ags.', 21.9235343, -102.2949220, 'mixed', 0.00, 24.00, 'Primeras 2 horas gratis con consumo en varias zonas comerciales.', 700, 950, 'range', 'mixed', 'unknown', 'mall_premium'),
+    ('Patio Aguascalientes', 'Centro comercial sobre Jose Maria Chavez con estacionamiento amplio.', 'Calle Jose Maria Chavez 1531, Agricultura, 20234 Aguascalientes, Ags.', 21.8584720, -102.2940333, 'mixed', 0.00, 22.00, 'Primeros 90 minutos sin costo; despues tarifa fija por hora.', 380, 560, 'range', 'mixed', 'unknown', 'mall_standard'),
+    ('Plaza Boreal', 'Plaza comercial al sur de la ciudad con estacionamiento de superficie.', 'Carretera Panamericana Sur Km. 11, Ejido Penuelas, 20349 Aguascalientes, Ags.', 21.7304301, -102.2784343, 'mixed', 0.00, 20.00, 'Primeras 2 horas gratis; tarifa reducida el resto del dia.', 240, 360, 'range', 'mixed', 'unknown', 'highway_plaza'),
+    ('Soriana Plaza San Marcos', 'Centro comercial con supermercado y estacionamiento para visitantes.', 'Avenida Convencion esq. Fundicion 2301, San Cayetano, 20010 Aguascalientes, Ags.', 21.8965746, -102.3105326, 'mixed', 0.00, 18.00, 'Tiempo de cortesia para clientes; cobro en estancias largas.', 280, 420, 'range', 'mixed', 'unknown', 'supermarket_center'),
+    ('Plaza de Toros Monumental de Aguascalientes', 'Recinto de espectaculos con estacionamiento para eventos.', 'Rafael Rodriguez Dominguez, Barrio de San Marcos, 20070 Aguascalientes, Ags.', 21.8749812, -102.3068258, 'paid', 30.00, 50.00, 'Cobro por evento; sube durante feria y fines de semana.', 450, 700, 'estimated', 'public', 'unknown', 'event_venue'),
+    ('Chedraui Villa Asuncion', 'Tienda ancla con estacionamiento dentro de Villa Asuncion.', 'Avenida Mahatma Gandhi, Centro Comercial Villa Asuncion, 20288 Aguascalientes, Ags.', 21.8552107, -102.2938853, 'mixed', 0.00, 18.00, 'Tiempo de cortesia para compras con tope diario accesible.', 260, 380, 'range', 'mixed', 'unknown', 'supermarket_center'),
+    ('Costco Aguascalientes', 'Tienda mayorista con estacionamiento amplio para socios y visitantes.', 'Avenida Aguascalientes Norte, 20350 Aguascalientes, Ags.', 21.9160424, -102.2879966, 'free', 0.00, 0.00, 'Sin costo dentro del horario de tienda para socios y visitantes autorizados.', 500, 750, 'range', 'mixed', 'unknown', 'wholesale_store'),
+    ('Centro Comercial Agropecuario', 'Centro comercial y de abasto con estacionamiento y alto flujo diario.', 'Calle Manzano, 20135 Aguascalientes, Ags.', 21.9148913, -102.2930212, 'paid', 12.00, 20.00, 'Cobro economico con alta rotacion en horas pico.', 600, 900, 'estimated', 'mixed', 'unknown', 'wholesale_market'),
+    ('Isla San Marcos', 'Recinto ferial y de eventos con estacionamiento de superficie.', 'Isla San Marcos, Aguascalientes, Ags.', 21.8613583, -102.3214750, 'paid', 30.00, 60.00, 'Tarifa por evento; en temporada alta se habilitan bolsas adicionales.', 900, 1400, 'estimated', 'public', 'unknown', 'fairgrounds_event'),
+    ('Foro de Las Estrellas', 'Foro de conciertos de la feria con estacionamiento por evento.', 'Bulevar San Marcos 504, Colonia Espana, 20210 Aguascalientes, Ags.', 21.8717049, -102.3099982, 'paid', 35.00, 60.00, 'Tarifa por concierto o evento con permanencia limitada.', 700, 1100, 'estimated', 'public', 'unknown', 'concert_venue'),
+    ('Estadio Victoria', 'Estadio de futbol con estacionamiento para dias de partido y eventos.', 'Calle Privada Jose Marin Iglesias, Colonia Heroes, 20259 Aguascalientes, Ags.', 21.8806558, -102.2754788, 'paid', 30.00, 55.00, 'Tarifa de evento; en dias sin partido opera con acceso restringido.', 600, 950, 'estimated', 'public', 'unknown', 'stadium_event'),
+    ('Museo Descubre', 'Museo interactivo con estacionamiento para visitantes.', 'Avenida del Parque, 20277 Aguascalientes, Ags.', 21.8561749, -102.2892588, 'paid', 10.00, 18.00, 'Tarifa baja para visitas familiares y recorridos de media estancia.', 120, 200, 'range', 'public', 'unknown', 'museum_schedule'),
+    ('Teatro Aguascalientes', 'Teatro y centro cultural con estacionamiento para funciones.', 'Avenida Jose Maria Chavez, 20284 Aguascalientes, Ags.', 21.8570590, -102.2912076, 'paid', 18.00, 30.00, 'Tarifa por funcion y eventos culturales nocturnos.', 180, 280, 'range', 'public', 'unknown', 'theater_schedule')
 ) as seed(
   name,
   description,
@@ -998,8 +1184,324 @@ from (
   capacity_max,
   capacity_confidence,
   access_type,
-  current_status
+  current_status,
+  hours_profile
 )
+cross join lateral (
+  select
+    case seed.hours_profile
+      when 'mall_premium' then jsonb_build_object(
+        'monday', '10:00',
+        'tuesday', '10:00',
+        'wednesday', '10:00',
+        'thursday', '10:00',
+        'friday', '10:00',
+        'saturday', '10:00',
+        'sunday', '11:00'
+      )
+      when 'downtown_commercial' then jsonb_build_object(
+        'monday', '08:00',
+        'tuesday', '08:00',
+        'wednesday', '08:00',
+        'thursday', '08:00',
+        'friday', '08:00',
+        'saturday', '08:00',
+        'sunday', '09:00'
+      )
+      when 'university_plaza' then jsonb_build_object(
+        'monday', '08:00',
+        'tuesday', '08:00',
+        'wednesday', '08:00',
+        'thursday', '08:00',
+        'friday', '08:00',
+        'saturday', '09:00',
+        'sunday', '10:00'
+      )
+      when 'textile_market' then jsonb_build_object(
+        'monday', '09:00',
+        'tuesday', '09:00',
+        'wednesday', '09:00',
+        'thursday', '09:00',
+        'friday', '09:00',
+        'saturday', '09:00',
+        'sunday', null
+      )
+      when 'neighborhood_plaza' then jsonb_build_object(
+        'monday', '09:00',
+        'tuesday', '09:00',
+        'wednesday', '09:00',
+        'thursday', '09:00',
+        'friday', '09:00',
+        'saturday', '09:00',
+        'sunday', '10:00'
+      )
+      when 'fair_commercial' then jsonb_build_object(
+        'monday', '10:00',
+        'tuesday', '10:00',
+        'wednesday', '10:00',
+        'thursday', '10:00',
+        'friday', '10:00',
+        'saturday', '10:00',
+        'sunday', '10:00'
+      )
+      when 'mall_standard' then jsonb_build_object(
+        'monday', '09:00',
+        'tuesday', '09:00',
+        'wednesday', '09:00',
+        'thursday', '09:00',
+        'friday', '09:00',
+        'saturday', '09:00',
+        'sunday', '10:00'
+      )
+      when 'highway_plaza' then jsonb_build_object(
+        'monday', '09:00',
+        'tuesday', '09:00',
+        'wednesday', '09:00',
+        'thursday', '09:00',
+        'friday', '09:00',
+        'saturday', '09:00',
+        'sunday', '09:00'
+      )
+      when 'supermarket_center' then jsonb_build_object(
+        'monday', '07:00',
+        'tuesday', '07:00',
+        'wednesday', '07:00',
+        'thursday', '07:00',
+        'friday', '07:00',
+        'saturday', '07:00',
+        'sunday', '08:00'
+      )
+      when 'event_venue' then jsonb_build_object(
+        'monday', null,
+        'tuesday', null,
+        'wednesday', null,
+        'thursday', null,
+        'friday', '18:00',
+        'saturday', '16:00',
+        'sunday', '13:00'
+      )
+      when 'wholesale_store' then jsonb_build_object(
+        'monday', '10:00',
+        'tuesday', '10:00',
+        'wednesday', '10:00',
+        'thursday', '10:00',
+        'friday', '10:00',
+        'saturday', '09:30',
+        'sunday', '10:00'
+      )
+      when 'wholesale_market' then jsonb_build_object(
+        'monday', '05:00',
+        'tuesday', '05:00',
+        'wednesday', '05:00',
+        'thursday', '05:00',
+        'friday', '05:00',
+        'saturday', '05:00',
+        'sunday', '06:00'
+      )
+      when 'fairgrounds_event' then jsonb_build_object(
+        'monday', null,
+        'tuesday', null,
+        'wednesday', null,
+        'thursday', null,
+        'friday', '17:00',
+        'saturday', '12:00',
+        'sunday', '12:00'
+      )
+      when 'concert_venue' then jsonb_build_object(
+        'monday', null,
+        'tuesday', null,
+        'wednesday', null,
+        'thursday', null,
+        'friday', '18:00',
+        'saturday', '18:00',
+        'sunday', '18:00'
+      )
+      when 'stadium_event' then jsonb_build_object(
+        'monday', null,
+        'tuesday', null,
+        'wednesday', null,
+        'thursday', null,
+        'friday', '17:00',
+        'saturday', '15:00',
+        'sunday', '12:00'
+      )
+      when 'museum_schedule' then jsonb_build_object(
+        'monday', null,
+        'tuesday', '09:00',
+        'wednesday', '09:00',
+        'thursday', '09:00',
+        'friday', '09:00',
+        'saturday', '10:00',
+        'sunday', '10:00'
+      )
+      when 'theater_schedule' then jsonb_build_object(
+        'monday', null,
+        'tuesday', '16:00',
+        'wednesday', '16:00',
+        'thursday', '16:00',
+        'friday', '16:00',
+        'saturday', '15:00',
+        'sunday', '15:00'
+      )
+      else null
+    end as opening_hours,
+    case seed.hours_profile
+      when 'mall_premium' then jsonb_build_object(
+        'monday', '22:00',
+        'tuesday', '22:00',
+        'wednesday', '22:00',
+        'thursday', '22:00',
+        'friday', '23:00',
+        'saturday', '23:00',
+        'sunday', '21:00'
+      )
+      when 'downtown_commercial' then jsonb_build_object(
+        'monday', '22:00',
+        'tuesday', '22:00',
+        'wednesday', '22:00',
+        'thursday', '22:00',
+        'friday', '22:00',
+        'saturday', '22:00',
+        'sunday', '20:00'
+      )
+      when 'university_plaza' then jsonb_build_object(
+        'monday', '21:00',
+        'tuesday', '21:00',
+        'wednesday', '21:00',
+        'thursday', '21:00',
+        'friday', '21:00',
+        'saturday', '21:00',
+        'sunday', '19:00'
+      )
+      when 'textile_market' then jsonb_build_object(
+        'monday', '20:00',
+        'tuesday', '20:00',
+        'wednesday', '20:00',
+        'thursday', '20:00',
+        'friday', '20:00',
+        'saturday', '18:00',
+        'sunday', null
+      )
+      when 'neighborhood_plaza' then jsonb_build_object(
+        'monday', '21:00',
+        'tuesday', '21:00',
+        'wednesday', '21:00',
+        'thursday', '21:00',
+        'friday', '21:00',
+        'saturday', '21:00',
+        'sunday', '19:00'
+      )
+      when 'fair_commercial' then jsonb_build_object(
+        'monday', '20:00',
+        'tuesday', '20:00',
+        'wednesday', '20:00',
+        'thursday', '20:00',
+        'friday', '23:00',
+        'saturday', '23:00',
+        'sunday', '22:00'
+      )
+      when 'mall_standard' then jsonb_build_object(
+        'monday', '22:00',
+        'tuesday', '22:00',
+        'wednesday', '22:00',
+        'thursday', '22:00',
+        'friday', '22:00',
+        'saturday', '22:00',
+        'sunday', '20:00'
+      )
+      when 'highway_plaza' then jsonb_build_object(
+        'monday', '21:00',
+        'tuesday', '21:00',
+        'wednesday', '21:00',
+        'thursday', '21:00',
+        'friday', '21:00',
+        'saturday', '21:00',
+        'sunday', '20:00'
+      )
+      when 'supermarket_center' then jsonb_build_object(
+        'monday', '22:00',
+        'tuesday', '22:00',
+        'wednesday', '22:00',
+        'thursday', '22:00',
+        'friday', '22:00',
+        'saturday', '22:00',
+        'sunday', '21:00'
+      )
+      when 'event_venue' then jsonb_build_object(
+        'monday', null,
+        'tuesday', null,
+        'wednesday', null,
+        'thursday', null,
+        'friday', '23:30',
+        'saturday', '23:30',
+        'sunday', '22:00'
+      )
+      when 'wholesale_store' then jsonb_build_object(
+        'monday', '20:30',
+        'tuesday', '20:30',
+        'wednesday', '20:30',
+        'thursday', '20:30',
+        'friday', '20:30',
+        'saturday', '21:00',
+        'sunday', '17:00'
+      )
+      when 'wholesale_market' then jsonb_build_object(
+        'monday', '17:00',
+        'tuesday', '17:00',
+        'wednesday', '17:00',
+        'thursday', '17:00',
+        'friday', '17:00',
+        'saturday', '16:00',
+        'sunday', '14:00'
+      )
+      when 'fairgrounds_event' then jsonb_build_object(
+        'monday', null,
+        'tuesday', null,
+        'wednesday', null,
+        'thursday', null,
+        'friday', '23:00',
+        'saturday', '23:30',
+        'sunday', '21:00'
+      )
+      when 'concert_venue' then jsonb_build_object(
+        'monday', null,
+        'tuesday', null,
+        'wednesday', null,
+        'thursday', null,
+        'friday', '23:30',
+        'saturday', '23:30',
+        'sunday', '22:30'
+      )
+      when 'stadium_event' then jsonb_build_object(
+        'monday', null,
+        'tuesday', null,
+        'wednesday', null,
+        'thursday', null,
+        'friday', '23:00',
+        'saturday', '23:00',
+        'sunday', '22:00'
+      )
+      when 'museum_schedule' then jsonb_build_object(
+        'monday', null,
+        'tuesday', '18:00',
+        'wednesday', '18:00',
+        'thursday', '18:00',
+        'friday', '18:00',
+        'saturday', '18:00',
+        'sunday', '18:00'
+      )
+      when 'theater_schedule' then jsonb_build_object(
+        'monday', null,
+        'tuesday', '22:00',
+        'wednesday', '22:00',
+        'thursday', '22:00',
+        'friday', '22:00',
+        'saturday', '22:00',
+        'sunday', '21:00'
+      )
+      else null
+    end as closing_hours
+) as hours
 where not exists (
   select 1
   from public.places as place

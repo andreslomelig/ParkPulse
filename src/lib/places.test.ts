@@ -40,6 +40,14 @@ describe("places", () => {
         name: " Nuevo lugar ",
         latitude: "21.1" as unknown as number,
         longitude: "-102.3" as unknown as number,
+        openingHours: {
+          monday: "8:00",
+          saturday: null,
+        },
+        closingHours: {
+          monday: "18:30",
+          saturday: null,
+        },
         hourlyCostMin: 10,
         hourlyCostMax: 20,
         capacityMin: 50,
@@ -50,6 +58,14 @@ describe("places", () => {
         name: "Nuevo lugar",
         latitude: 21.1,
         longitude: -102.3,
+        openingHours: {
+          monday: "08:00",
+          saturday: null,
+        },
+        closingHours: {
+          monday: "18:30",
+          saturday: null,
+        },
         createdBySessionId: "session-123",
       })
     );
@@ -69,6 +85,31 @@ describe("places", () => {
         longitude: 2,
       })
     ).toThrow("Las coordenadas del estacionamiento son invalidas.");
+
+    expect(() =>
+      normalizeCreateParkingPlaceInput({
+        name: "Lugar",
+        latitude: 1,
+        longitude: 2,
+        openingHours: {
+          monday: "08:00",
+        },
+      })
+    ).toThrow("El horario semanal necesita apertura y cierre por dia.");
+
+    expect(() =>
+      normalizeCreateParkingPlaceInput({
+        name: "Lugar",
+        latitude: 1,
+        longitude: 2,
+        openingHours: {
+          monday: "08:00",
+        },
+        closingHours: {
+          monday: "07:30",
+        },
+      })
+    ).toThrow("La hora de cierre del lunes debe ser posterior a la de apertura.");
 
     expect(() =>
       normalizeCreateParkingPlaceInput({
@@ -110,6 +151,14 @@ describe("places", () => {
               {
                 id: "remote-1",
                 name: "Lugar remoto",
+                opening_hours: {
+                  monday: "08:00",
+                  sunday: null,
+                },
+                closing_hours: {
+                  monday: "20:00",
+                  sunday: null,
+                },
                 latitude: 21.88,
                 longitude: -102.29,
                 current_status: "available",
@@ -132,6 +181,14 @@ describe("places", () => {
         id: "remote-1",
         name: "Lugar remoto",
         status: "available",
+        openingHours: {
+          monday: "08:00",
+          sunday: null,
+        },
+        closingHours: {
+          monday: "20:00",
+          sunday: null,
+        },
         averageRating: 4.5,
         ratingCount: 8,
       }),
@@ -624,11 +681,33 @@ describe("places", () => {
         name: "Creado",
         latitude: 21.7,
         longitude: -102.1,
+        openingHours: {
+          monday: "08:00",
+          sunday: null,
+        },
+        closingHours: {
+          monday: "20:00",
+          sunday: null,
+        },
       })
     ).resolves.toEqual(
       expect.objectContaining({
         id: "created-1",
         name: "Creado",
+      })
+    );
+
+    expect(client.rpc).toHaveBeenCalledWith(
+      "create_place",
+      expect.objectContaining({
+        input_opening_hours: {
+          monday: "08:00",
+          sunday: null,
+        },
+        input_closing_hours: {
+          monday: "20:00",
+          sunday: null,
+        },
       })
     );
   });

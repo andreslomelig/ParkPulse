@@ -5,12 +5,41 @@ export type ParkingReportStatus = Exclude<ParkingStatus, "unknown">;
 export type ParkingCostType = "free" | "paid" | "mixed" | "unknown";
 export type CapacityConfidence = "exact" | "estimated" | "range" | "unknown";
 export type AccessType = "public" | "private" | "mixed" | "unknown";
+export const PARKING_WEEKDAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+export type ParkingWeekday = (typeof PARKING_WEEKDAYS)[number];
+export type ParkingHoursMap = Partial<Record<ParkingWeekday, string | null>>;
+export type ParkingDayHoursStatus = "open" | "closed" | "unknown";
+export type ParkingDayHours = {
+  status: ParkingDayHoursStatus;
+  opensAt: string | null;
+  closesAt: string | null;
+};
+
+export const PARKING_WEEKDAY_LABELS: Record<ParkingWeekday, string> = {
+  monday: "Lunes",
+  tuesday: "Martes",
+  wednesday: "Miercoles",
+  thursday: "Jueves",
+  friday: "Viernes",
+  saturday: "Sabado",
+  sunday: "Domingo",
+};
 
 export type ParkingPlace = {
   id: string;
   name: string;
   description: string | null;
   address: string | null;
+  openingHours?: ParkingHoursMap | null;
+  closingHours?: ParkingHoursMap | null;
   latitude: number;
   longitude: number;
   status: ParkingStatus;
@@ -158,4 +187,66 @@ export function normalizeRatingValue(value: number | null | undefined) {
 export function clampLimit(limit: number, fallback: number) {
   if (!Number.isFinite(limit) || limit <= 0) return fallback;
   return Math.max(1, Math.trunc(limit));
+}
+
+export function isParkingWeekday(value: string): value is ParkingWeekday {
+  return (PARKING_WEEKDAYS as readonly string[]).includes(value);
+}
+
+export function hasParkingHours(
+  openingHours: ParkingHoursMap | null | undefined,
+  closingHours: ParkingHoursMap | null | undefined
+) {
+  return PARKING_WEEKDAYS.some((day) => {
+    const openingHasValue =
+      openingHours && Object.prototype.hasOwnProperty.call(openingHours, day);
+    const closingHasValue =
+      closingHours && Object.prototype.hasOwnProperty.call(closingHours, day);
+
+    return openingHasValue || closingHasValue;
+  });
+}
+
+export function getParkingDayHours(
+  openingHours: ParkingHoursMap | null | undefined,
+  closingHours: ParkingHoursMap | null | undefined,
+  day: ParkingWeekday
+): ParkingDayHours {
+  const openingHasValue =
+    openingHours && Object.prototype.hasOwnProperty.call(openingHours, day);
+  const closingHasValue =
+    closingHours && Object.prototype.hasOwnProperty.call(closingHours, day);
+
+  if (!openingHasValue && !closingHasValue) {
+    return {
+      status: "unknown",
+      opensAt: null,
+      closesAt: null,
+    };
+  }
+
+  const opensAt = openingHours?.[day] ?? null;
+  const closesAt = closingHours?.[day] ?? null;
+
+  if (opensAt === null && closesAt === null) {
+    return {
+      status: "closed",
+      opensAt: null,
+      closesAt: null,
+    };
+  }
+
+  if (opensAt && closesAt) {
+    return {
+      status: "open",
+      opensAt,
+      closesAt,
+    };
+  }
+
+  return {
+    status: "unknown",
+    opensAt: null,
+    closesAt: null,
+  };
 }

@@ -493,6 +493,9 @@ describe("MapScreen", () => {
       screen.getByTestId("new-place-name-input"),
       "Nuevo estacionamiento"
     );
+    fireEvent.changeText(screen.getByTestId("new-place-monday-open-input"), "08:00");
+    fireEvent.changeText(screen.getByTestId("new-place-monday-close-input"), "20:00");
+    fireEvent.press(screen.getByTestId("new-place-sunday-closed-toggle"));
 
     await act(async () => {
       fireEvent.press(screen.getByText("Guardar lugar"));
@@ -501,6 +504,14 @@ describe("MapScreen", () => {
     expect(createParkingPlace).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Nuevo estacionamiento",
+        openingHours: expect.objectContaining({
+          monday: "08:00",
+          sunday: null,
+        }),
+        closingHours: expect.objectContaining({
+          monday: "20:00",
+          sunday: null,
+        }),
       })
     );
     expect(Alert.alert).toHaveBeenCalledWith(
