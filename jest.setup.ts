@@ -27,14 +27,14 @@ jest.mock("@gorhom/bottom-sheet", () => {
   const React = require("react");
   const { View, ScrollView } = require("react-native");
 
-  const BottomSheet = React.forwardRef(({ children, onChange }: any, ref: any) => {
+  const BottomSheet = React.forwardRef(({ children, onChange, ...props }: any, ref: any) => {
     React.useImperativeHandle(ref, () => ({
       snapToIndex: (index: number) => {
         onChange?.(index);
       },
     }));
 
-    return React.createElement(View, null, children);
+    return React.createElement(View, props, children);
   });
 
   const BottomSheetScrollView = ({ children, ...props }: any) =>

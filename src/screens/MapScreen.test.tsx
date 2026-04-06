@@ -2,6 +2,7 @@ import React from "react";
 import { Alert } from "react-native";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import * as Location from "expo-location";
+import BottomSheet from "@gorhom/bottom-sheet";
 import MapScreen from "./MapScreen";
 import {
   createParkingPlace,
@@ -453,6 +454,31 @@ describe("MapScreen", () => {
       "Estacionamiento guardado",
       expect.stringContaining("Nuevo estacionamiento")
     );
+  });
+
+  it("closes the add parking sheet when dragged down", async () => {
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("toggle-add-place-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Agregar estacionamiento")).toBeTruthy();
+    });
+
+    act(() => {
+      screen.UNSAFE_getByType(BottomSheet).props.onChange(-1);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Agregar estacionamiento")).toBeNull();
+      expect(
+        screen.getByText("Toca un marcador para abrir la ficha completa o usa + para agregar uno nuevo.")
+      ).toBeTruthy();
+    });
   });
 
   it("toggles the saved state of the selected place", async () => {

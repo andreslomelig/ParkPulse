@@ -248,6 +248,7 @@ export default function MapScreen({
 }: MapScreenProps) {
   const mapRef = useRef<MapView>(null);
   const placeSheetRef = useRef<BottomSheet>(null);
+  const addPlaceSheetRef = useRef<BottomSheet>(null);
   const ignoreNextMapPressRef = useRef(false);
   const lastHandledFocusRequestIdRef = useRef<number | null>(null);
 
@@ -276,10 +277,12 @@ export default function MapScreen({
   const [selectedPlaceReports, setSelectedPlaceReports] = useState<ParkingReport[]>([]);
   const [isLoadingPlaceHistory, setIsLoadingPlaceHistory] = useState(false);
   const [placeHistoryRefreshKey, setPlaceHistoryRefreshKey] = useState(0);
+  const [addPlaceSheetIndex, setAddPlaceSheetIndex] = useState(1);
   const [newPlaceDraft, setNewPlaceDraft] = useState<NewPlaceDraft>(
     createEmptyNewPlaceDraft()
   );
   const [isSavingPlace, setIsSavingPlace] = useState(false);
+  const addPlaceSheetSnapPoints = useMemo(() => ["34%", "78%"], []);
   const placeSheetSnapPoints = useMemo(() => ["32%", "76%"], []);
   const isPlaceSheetExpanded = placeSheetIndex === 1;
 
@@ -656,6 +659,7 @@ export default function MapScreen({
   };
 
   const onStartAddPlace = () => {
+    setAddPlaceSheetIndex(1);
     setIsAddMode(true);
     setDraftPlaceCoord(null);
     setSelectedPlaceId(null);
@@ -664,9 +668,18 @@ export default function MapScreen({
   };
 
   const onCancelAddPlace = () => {
+    setAddPlaceSheetIndex(1);
     setIsAddMode(false);
     setDraftPlaceCoord(null);
     setNewPlaceDraft(createEmptyNewPlaceDraft());
+  };
+
+  const handleAddPlaceSheetChange = (index: number) => {
+    setAddPlaceSheetIndex(index);
+
+    if (index === -1) {
+      onCancelAddPlace();
+    }
   };
 
   const onSaveNewPlace = async () => {
@@ -984,11 +997,31 @@ export default function MapScreen({
       </View>
 
       {isAddMode ? (
-        <View style={[styles.sheet, styles.sheetExpanded]}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Agregar estacionamiento</Text>
-          <Text style={styles.sheetSubtitle}>Toca el mapa para fijar ubicacion y completa los datos clave.</Text>
-          <ScrollView showsVerticalScrollIndicator={false}>
+        <BottomSheet
+          ref={addPlaceSheetRef}
+          index={addPlaceSheetIndex}
+          snapPoints={addPlaceSheetSnapPoints}
+          enablePanDownToClose
+          enableContentPanningGesture
+          enableOverDrag={false}
+          animateOnMount={false}
+          backgroundStyle={styles.bottomSheetBackground}
+          handleIndicatorStyle={styles.bottomSheetHandleIndicator}
+          onChange={handleAddPlaceSheetChange}
+        >
+          <View style={styles.sheetHeaderBlock}>
+            <Text style={styles.sheetTitle}>Agregar estacionamiento</Text>
+            <Text style={styles.sheetSubtitle}>
+              Toca el mapa para fijar ubicacion y completa los datos clave.
+            </Text>
+          </View>
+          <BottomSheetScrollView
+            style={styles.sheetScroll}
+            contentContainerStyle={styles.sheetScrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.sheetHeroDraft}>
               <Text style={styles.sheetHeroDraftLabel}>Nuevo punto comunitario</Text>
               <Text style={styles.sheetHeroDraftMeta}>
@@ -1114,23 +1147,22 @@ export default function MapScreen({
                 ? `${(draftPlaceCoord ?? region)!.latitude.toFixed(5)}, ${(draftPlaceCoord ?? region)!.longitude.toFixed(5)}`
                 : "mueve el mapa para fijarlas"}
             </Text>
-          </ScrollView>
-
-          <View style={styles.sheetActions}>
-            <Pressable style={[styles.actionBtn, styles.actionGhost]} onPress={onCancelAddPlace}>
-              <Text style={styles.actionGhostText}>Cancelar</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.actionBtn, styles.actionPrimary]}
-              onPress={onSaveNewPlace}
-              disabled={isSavingPlace}
-            >
-              <Text style={styles.actionPrimaryText}>
-                {isSavingPlace ? "Guardando..." : "Guardar lugar"}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+            <View style={styles.sheetActions}>
+              <Pressable style={[styles.actionBtn, styles.actionGhost]} onPress={onCancelAddPlace}>
+                <Text style={styles.actionGhostText}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.actionBtn, styles.actionPrimary]}
+                onPress={onSaveNewPlace}
+                disabled={isSavingPlace}
+              >
+                <Text style={styles.actionPrimaryText}>
+                  {isSavingPlace ? "Guardando..." : "Guardar lugar"}
+                </Text>
+              </Pressable>
+            </View>
+          </BottomSheetScrollView>
+        </BottomSheet>
       ) : reportingPlace ? (
         <View style={[styles.sheet, styles.sheetExpanded]}>
           <View style={styles.sheetHandle} />
@@ -1713,6 +1745,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#cbd5e1",
     marginBottom: 10,
   },
+  sheetHeaderBlock: { paddingHorizontal: 14, paddingTop: 4 },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sheetTitle: { fontSize: 17, fontWeight: "800", color: "#0f172a", maxWidth: "70%" },
   sheetSubtitle: { marginTop: 4, fontSize: 13, color: "#475569", fontWeight: "500" },
