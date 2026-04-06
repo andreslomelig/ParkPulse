@@ -31,9 +31,9 @@ const fallbackPlaceReviews: ParkingPlaceReview[] = [
   {
     id: "fallback-review-1",
     placeId: "fallback-1",
-    placeName: "Centro - Plaza Patria",
+    placeName: "Plaza Patria",
     rating: 5,
-    comment: "Seguro, rapido y con flujo constante incluso en hora pico.",
+    comment: "Bien ubicado para moverse por el centro y entrar rapido.",
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     reviewerUserId: null,
@@ -43,9 +43,9 @@ const fallbackPlaceReviews: ParkingPlaceReview[] = [
   {
     id: "fallback-review-2",
     placeId: "fallback-1",
-    placeName: "Centro - Plaza Patria",
+    placeName: "Plaza Patria",
     rating: 4,
-    comment: "Buena opcion si vas temprano; por la tarde cuesta mas encontrar salida.",
+    comment: "Buena opcion si vas temprano; por la tarde suele tardar mas la salida.",
     createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
     reviewerUserId: null,

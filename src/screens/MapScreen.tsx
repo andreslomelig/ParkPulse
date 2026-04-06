@@ -279,9 +279,9 @@ export default function MapScreen({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([
-    "Centro - Plaza Patria",
-    "Altaria Mall",
-    "San Marcos",
+    "Plaza Patria",
+    "Centro Comercial Altaria",
+    "Estadio Victoria",
   ]);
   const [savedPlaceIds, setSavedPlaceIds] = useState<string[]>([]);
   const [isLoadingSavedPlaces, setIsLoadingSavedPlaces] = useState(true);

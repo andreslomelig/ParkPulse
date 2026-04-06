@@ -79,9 +79,9 @@ const fallbackRecentReports: ParkingReport[] = [
   {
     id: "report-1",
     placeId: "fallback-1",
-    placeName: "Centro - Plaza Patria",
+    placeName: "Plaza Patria",
     status: "available",
-    note: "Movimiento constante, aun hay espacios.",
+    note: "Movimiento constante, aun hay lugares disponibles.",
     createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
     expiresAt: new Date(Date.now() + 7 * 60 * 1000).toISOString(),
     reportedDistanceMeters: 30,
@@ -92,9 +92,9 @@ const fallbackRecentReports: ParkingReport[] = [
   {
     id: "report-2",
     placeId: "fallback-2",
-    placeName: "Zona Feria - Estadio",
+    placeName: "Estadio Victoria",
     status: "full",
-    note: "Se lleno por evento.",
+    note: "Se lleno por evento esta tarde.",
     createdAt: new Date(Date.now() - 21 * 60 * 1000).toISOString(),
     expiresAt: new Date(Date.now() + 9 * 60 * 1000).toISOString(),
     reportedDistanceMeters: 42,
