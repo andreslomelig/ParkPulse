@@ -76,6 +76,15 @@ const REPORT_RADIUS_METERS = 200;
 const RECENT_REPORTS_LIMIT = 5;
 const PLACE_HISTORY_LIMIT = 4;
 
+async function fetchMapOverviewData() {
+  const [nextPlaces, nextReports] = await Promise.all([
+    fetchPlaces(),
+    fetchRecentReports(RECENT_REPORTS_LIMIT),
+  ]);
+
+  return { nextPlaces, nextReports };
+}
+
 function createEmptyNewPlaceDraft(): NewPlaceDraft {
   return {
     name: "",
@@ -266,6 +275,7 @@ export default function MapScreen({
   const [recentReports, setRecentReports] = useState<ParkingReport[]>([]);
   const [selectedPlaceReports, setSelectedPlaceReports] = useState<ParkingReport[]>([]);
   const [isLoadingPlaceHistory, setIsLoadingPlaceHistory] = useState(false);
+  const [placeHistoryRefreshKey, setPlaceHistoryRefreshKey] = useState(0);
   const [newPlaceDraft, setNewPlaceDraft] = useState<NewPlaceDraft>(
     createEmptyNewPlaceDraft()
   );
@@ -278,10 +288,7 @@ export default function MapScreen({
 
     const load = async () => {
       setIsLoadingPlaces(true);
-      const [nextPlaces, nextReports] = await Promise.all([
-        fetchPlaces(),
-        fetchRecentReports(RECENT_REPORTS_LIMIT),
-      ]);
+      const { nextPlaces, nextReports } = await fetchMapOverviewData();
       if (active) {
         setPlaces(nextPlaces);
         setRecentReports(nextReports);
@@ -329,11 +336,11 @@ export default function MapScreen({
     let active = true;
 
     if (!selectedPlaceId) {
-      setSelectedPlaceReports([]);
-      return () => {
-        active = false;
-      };
-    }
+        setSelectedPlaceReports([]);
+        return () => {
+          active = false;
+        };
+      }
 
     setIsLoadingPlaceHistory(true);
     fetchReportsForPlace(selectedPlaceId, PLACE_HISTORY_LIMIT)
@@ -352,7 +359,7 @@ export default function MapScreen({
     return () => {
       active = false;
     };
-  }, [selectedPlaceId]);
+  }, [selectedPlaceId, placeHistoryRefreshKey]);
 
   const requestUserLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -475,6 +482,33 @@ export default function MapScreen({
     } catch (e) {
       console.error(e);
       Alert.alert("Error", "No se pudo centrar el mapa.");
+    }
+  };
+
+  const onRefreshPress = async () => {
+    setIsLoadingPlaces(true);
+
+    try {
+      const { nextPlaces, nextReports } = await fetchMapOverviewData();
+      const nextSelectedPlaceId =
+        selectedPlaceId && nextPlaces.some((place) => place.id === selectedPlaceId)
+          ? selectedPlaceId
+          : nextPlaces[0]?.id ?? null;
+
+      setPlaces(nextPlaces);
+      setRecentReports(nextReports);
+      setSelectedPlaceId(nextSelectedPlaceId);
+      setReportingPlaceId((currentReportingPlaceId) =>
+        currentReportingPlaceId && nextPlaces.some((place) => place.id === currentReportingPlaceId)
+          ? currentReportingPlaceId
+          : null
+      );
+      setPlaceHistoryRefreshKey((value) => value + 1);
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "No se pudo actualizar el mapa.");
+    } finally {
+      setIsLoadingPlaces(false);
     }
   };
 
@@ -933,6 +967,15 @@ export default function MapScreen({
           onPress={isAddMode ? onCancelAddPlace : onStartAddPlace}
         >
           <Text style={styles.fabPrimaryIcon}>{isAddMode ? "x" : "+"}</Text>
+        </Pressable>
+
+        <Pressable
+          testID="refresh-map-button"
+          style={[styles.fab, styles.fabSecondary, isLoadingPlaces && styles.fabDisabled]}
+          onPress={onRefreshPress}
+          disabled={isLoadingPlaces}
+        >
+          <Text style={styles.fabRefreshIcon}>↻</Text>
         </Pressable>
 
         <Pressable style={[styles.fab, styles.fabSecondary]} onPress={onCenterPress}>
@@ -1624,6 +1667,7 @@ const styles = StyleSheet.create({
   fabPrimary: { backgroundColor: "#0ea5e9" },
   fabPrimaryActive: { backgroundColor: "#ef4444" },
   fabSecondary: { backgroundColor: "#ffffff" },
+  fabDisabled: { opacity: 0.62 },
   fabPrimaryIcon: {
     color: "white",
     fontSize: 30,
@@ -1631,6 +1675,7 @@ const styles = StyleSheet.create({
     marginTop: -2,
     fontWeight: "700",
   },
+  fabRefreshIcon: { color: "#0f172a", fontSize: 22, fontWeight: "800" },
   fabSecondaryIcon: { color: "#0f172a", fontSize: 20, fontWeight: "800" },
   sheet: {
     position: "absolute",

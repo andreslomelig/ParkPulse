@@ -240,6 +240,59 @@ describe("MapScreen", () => {
     });
   });
 
+  it("refreshes map data from the floating button", async () => {
+    (fetchRecentReports as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          id: "remote-report-1",
+          placeId: "fallback-2",
+          placeName: "Historial remoto",
+          status: "full",
+          note: "Muy saturado",
+          createdAt: "2026-03-19T18:10:00.000Z",
+          expiresAt: "2026-03-19T18:40:00.000Z",
+          reportedDistanceMeters: 18,
+          reporterUserId: null,
+          reporterDisplayName: "Comunidad",
+          source: "remote",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "remote-report-2",
+          placeId: "fallback-1",
+          placeName: "Historial actualizado",
+          status: "available",
+          note: "Espacios libres de nuevo",
+          createdAt: "2026-03-19T18:22:00.000Z",
+          expiresAt: "2026-03-19T18:52:00.000Z",
+          reportedDistanceMeters: 9,
+          reporterUserId: null,
+          reporterDisplayName: "Comunidad",
+          source: "remote",
+        },
+      ]);
+
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("refresh-map-button"));
+
+    await waitFor(() => {
+      expect(fetchPlaces).toHaveBeenCalledTimes(2);
+      expect(fetchRecentReports).toHaveBeenCalledTimes(2);
+    });
+
+    fireEvent.press(screen.getByTestId("open-menu-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Historial actualizado")).toBeTruthy();
+    });
+  });
+
   it("opens the menu shell and shows recent report history", async () => {
     const screen = renderMapScreen();
 
