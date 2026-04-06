@@ -38,7 +38,6 @@ import {
 import type { AuthenticatedAppUser } from "../lib/auth";
 import {
   fetchSavedPlaceIds,
-  mapSavedPlaces,
   toggleSavedPlaceForUser,
 } from "../lib/savedPlaces";
 
@@ -454,10 +453,6 @@ export default function MapScreen({
       return haystack.includes(normalizedQuery);
     });
   }, [mapReadyPlaces, searchQuery]);
-
-  const savedPlaces = useMemo(() => {
-    return mapSavedPlaces(mapReadyPlaces, savedPlaceIds);
-  }, [mapReadyPlaces, savedPlaceIds]);
 
   const isSelectedPlaceSaved = selectedPlace ? savedPlaceIds.includes(selectedPlace.id) : false;
 
@@ -1491,37 +1486,6 @@ export default function MapScreen({
               </View>
 
               <View style={styles.menuSection}>
-                <Text style={styles.menuSectionTitle}>Guardados</Text>
-                {isLoadingSavedPlaces ? (
-                  <Text style={styles.menuEmptyText}>Cargando lugares guardados...</Text>
-                ) : savedPlaces.length > 0 ? (
-                  savedPlaces.map((place) => (
-                    <Pressable
-                      key={place.id}
-                      style={styles.menuSavedRow}
-                      onPress={() => {
-                        closeMenu();
-                        focusPlaceFromSearch(place);
-                      }}
-                    >
-                      <View
-                        style={[
-                          styles.menuSavedDot,
-                          { backgroundColor: statusToColor(place.status) },
-                        ]}
-                      />
-                      <View style={styles.menuSavedCopy}>
-                        <Text style={styles.menuSavedTitle}>{place.name}</Text>
-                        <Text style={styles.menuSavedSubtitle}>{statusToLabel(place.status)}</Text>
-                      </View>
-                    </Pressable>
-                  ))
-                ) : (
-                  <Text style={styles.menuEmptyText}>Todavia no tienes lugares guardados.</Text>
-                )}
-              </View>
-
-              <View style={styles.menuSection}>
                 <Text style={styles.menuSectionTitle}>Reportes recientes</Text>
                 {recentReports.length > 0 ? (
                   recentReports.map((report) => (
@@ -2050,18 +2014,6 @@ const styles = StyleSheet.create({
   menuActionCopy: { flex: 1, marginLeft: 10 },
   menuActionTitle: { fontSize: 15, color: "#0f172a", fontWeight: "800" },
   menuActionSubtitle: { marginTop: 4, fontSize: 12, lineHeight: 17, color: "#64748b", fontWeight: "500" },
-  menuSavedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
-  },
-  menuSavedDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
-  menuSavedCopy: { flex: 1 },
-  menuSavedTitle: { fontSize: 15, color: "#0f172a", fontWeight: "800" },
-  menuSavedSubtitle: { marginTop: 3, fontSize: 12, color: "#64748b", fontWeight: "500" },
   menuEmptyText: { marginTop: 10, fontSize: 13, lineHeight: 18, color: "#64748b" },
   menuReportRow: {
     flexDirection: "row",
