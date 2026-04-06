@@ -153,6 +153,7 @@ This creates:
 -   `npm run typecheck` --- Run TypeScript checks
 -   `npm test` --- Run frontend Jest tests
 -   `npm test -- --coverage --runInBand` --- Enforce 100% coverage for `src/lib`
+-   `npx expo start -c` --- To erase the local mobile cache (to restart all information in-device)
 
 ------------------------------------------------------------------------
 

@@ -1437,8 +1437,6 @@ export default function MapScreen({
 
       <Modal visible={isMenuOpen} animationType="fade" transparent onRequestClose={closeMenu}>
         <View style={styles.menuBackdrop}>
-          <Pressable style={styles.menuDismissArea} onPress={closeMenu} />
-
           <View style={styles.menuPanel}>
             <View style={styles.menuProfileCard}>
               <View style={styles.menuAvatar}>
@@ -1572,6 +1570,8 @@ export default function MapScreen({
               </View>
             </ScrollView>
           </View>
+
+          <Pressable style={styles.menuDismissArea} onPress={closeMenu} />
         </View>
       </Modal>
     </SafeAreaView>
