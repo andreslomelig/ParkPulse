@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Modal,
+  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -26,7 +27,7 @@ import {
 import {
   formatCapacitySummary,
   formatCostSummary,
-  formatRatingSummary,
+  formatRatingBadgeSummary,
   formatReportVolumeSummary,
 } from "../lib/parkingPresentation";
 import {
@@ -36,10 +37,12 @@ import {
   type ParkingReport,
 } from "../lib/reports";
 import type { AuthenticatedAppUser } from "../lib/auth";
+import StarRatingRow from "../components/StarRatingRow";
 import {
   fetchSavedPlaceIds,
   toggleSavedPlaceForUser,
 } from "../lib/savedPlaces";
+import { fetchPlaceReviews, type ParkingPlaceReview } from "../lib/reviews";
 
 type PermissionState = "unknown" | "granted" | "denied";
 type LatLng = { latitude: number; longitude: number };
@@ -60,8 +63,10 @@ export type MapScreenProps = {
   onOpenPrivacyLegal?: () => void;
   onOpenReportHistory?: () => void;
   onOpenSavedPlaces?: () => void;
+  onOpenPlaceReview?: (place: ParkingPlace) => void;
   pendingFocusPlaceId?: string | null;
   pendingFocusRequestId?: number | null;
+  pendingPlaceRefreshRequestId?: number | null;
   onSignOut: () => void | Promise<void>;
 };
 
@@ -75,6 +80,7 @@ const PILOT_REGION: Region = {
 const REPORT_RADIUS_METERS = 200;
 const RECENT_REPORTS_LIMIT = 5;
 const PLACE_HISTORY_LIMIT = 4;
+const PLACE_REVIEWS_LIMIT = 25;
 
 async function fetchMapOverviewData() {
   const [nextPlaces, nextReports] = await Promise.all([
@@ -176,7 +182,11 @@ function getUserDisplayName(user: AuthenticatedAppUser) {
 }
 
 function getUserInitials(user: AuthenticatedAppUser) {
-  const displayName = getUserDisplayName(user);
+  return getInitialsFromLabel(getUserDisplayName(user));
+}
+
+function getInitialsFromLabel(label: string | null) {
+  const displayName = label ?? "PP";
   const parts = displayName
     .split(" ")
     .map((part) => part.trim())
@@ -240,10 +250,12 @@ function distanceInMeters(from: LatLng, to: LatLng) {
 export default function MapScreen({
   currentUser,
   onOpenReportHistory,
+  onOpenPlaceReview,
   onOpenPrivacyLegal,
   onOpenSavedPlaces,
   pendingFocusPlaceId,
   pendingFocusRequestId,
+  pendingPlaceRefreshRequestId,
   onSignOut,
 }: MapScreenProps) {
   const mapRef = useRef<MapView>(null);
@@ -251,6 +263,7 @@ export default function MapScreen({
   const addPlaceSheetRef = useRef<BottomSheet>(null);
   const ignoreNextMapPressRef = useRef(false);
   const lastHandledFocusRequestIdRef = useRef<number | null>(null);
+  const lastHandledPlaceRefreshRequestIdRef = useRef<number | null>(null);
 
   const [permission, setPermission] = useState<PermissionState>("unknown");
   const [region, setRegion] = useState<Region | null>(null);
@@ -275,8 +288,11 @@ export default function MapScreen({
   const [isTogglingSavedPlace, setIsTogglingSavedPlace] = useState(false);
   const [recentReports, setRecentReports] = useState<ParkingReport[]>([]);
   const [selectedPlaceReports, setSelectedPlaceReports] = useState<ParkingReport[]>([]);
+  const [selectedPlaceReviews, setSelectedPlaceReviews] = useState<ParkingPlaceReview[]>([]);
   const [isLoadingPlaceHistory, setIsLoadingPlaceHistory] = useState(false);
-  const [placeHistoryRefreshKey, setPlaceHistoryRefreshKey] = useState(0);
+  const [isLoadingPlaceReviews, setIsLoadingPlaceReviews] = useState(false);
+  const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [placeDetailsRefreshKey, setPlaceDetailsRefreshKey] = useState(0);
   const [addPlaceSheetIndex, setAddPlaceSheetIndex] = useState(1);
   const [newPlaceDraft, setNewPlaceDraft] = useState<NewPlaceDraft>(
     createEmptyNewPlaceDraft()
@@ -339,30 +355,53 @@ export default function MapScreen({
     let active = true;
 
     if (!selectedPlaceId) {
-        setSelectedPlaceReports([]);
-        return () => {
-          active = false;
-        };
-      }
+      setSelectedPlaceReports([]);
+      setSelectedPlaceReviews([]);
+      setIsReviewsModalOpen(false);
+      return () => {
+        active = false;
+      };
+    }
 
     setIsLoadingPlaceHistory(true);
-    fetchReportsForPlace(selectedPlaceId, PLACE_HISTORY_LIMIT)
-      .then((history) => {
+    setIsLoadingPlaceReviews(true);
+    Promise.allSettled([
+      fetchReportsForPlace(selectedPlaceId, PLACE_HISTORY_LIMIT),
+      fetchPlaceReviews(selectedPlaceId, PLACE_REVIEWS_LIMIT),
+    ])
+      .then(([historyResult, reviewsResult]) => {
         if (!active) return;
-        setSelectedPlaceReports(history);
+
+        if (historyResult.status === "fulfilled") {
+          setSelectedPlaceReports(historyResult.value);
+        } else {
+          console.error(historyResult.reason);
+          setSelectedPlaceReports([]);
+        }
+
+        if (reviewsResult.status === "fulfilled") {
+          setSelectedPlaceReviews(reviewsResult.value);
+        } else {
+          console.error(reviewsResult.reason);
+          setSelectedPlaceReviews([]);
+        }
+
         setIsLoadingPlaceHistory(false);
+        setIsLoadingPlaceReviews(false);
       })
       .catch((e) => {
         console.error(e);
         if (!active) return;
         setSelectedPlaceReports([]);
+        setSelectedPlaceReviews([]);
         setIsLoadingPlaceHistory(false);
+        setIsLoadingPlaceReviews(false);
       });
 
     return () => {
       active = false;
     };
-  }, [selectedPlaceId, placeHistoryRefreshKey]);
+  }, [selectedPlaceId, placeDetailsRefreshKey]);
 
   const requestUserLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -506,7 +545,7 @@ export default function MapScreen({
           ? currentReportingPlaceId
           : null
       );
-      setPlaceHistoryRefreshKey((value) => value + 1);
+      setPlaceDetailsRefreshKey((value) => value + 1);
     } catch (e) {
       console.error(e);
       Alert.alert("Error", "No se pudo actualizar el mapa.");
@@ -632,6 +671,56 @@ export default function MapScreen({
     focusPlaceFromSearch(placeToFocus);
   }, [mapReadyPlaces, pendingFocusPlaceId, pendingFocusRequestId]);
 
+  useEffect(() => {
+    if (
+      pendingPlaceRefreshRequestId === null ||
+      pendingPlaceRefreshRequestId === undefined
+    ) {
+      return;
+    }
+
+    if (
+      lastHandledPlaceRefreshRequestIdRef.current === pendingPlaceRefreshRequestId
+    ) {
+      return;
+    }
+
+    lastHandledPlaceRefreshRequestIdRef.current = pendingPlaceRefreshRequestId;
+
+    const placeIdToRefresh = pendingFocusPlaceId ?? selectedPlaceId;
+    if (!placeIdToRefresh) {
+      return;
+    }
+
+    let active = true;
+
+    fetchPlaceById(placeIdToRefresh)
+      .then((latestPlace) => {
+        if (!active || !latestPlace) return;
+
+        setPlaces((prev) => {
+          const alreadyExists = prev.some((place) => place.id === latestPlace.id);
+          if (!alreadyExists) {
+            return [latestPlace, ...prev];
+          }
+
+          return prev.map((place) =>
+            place.id === latestPlace.id ? latestPlace : place
+          );
+        });
+        setSelectedPlaceId(latestPlace.id);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
+    setPlaceDetailsRefreshKey((value) => value + 1);
+
+    return () => {
+      active = false;
+    };
+  }, [pendingFocusPlaceId, pendingPlaceRefreshRequestId, selectedPlaceId]);
+
   const handleToggleSavedPlace = async () => {
     if (!selectedPlace) return;
 
@@ -656,6 +745,25 @@ export default function MapScreen({
     } finally {
       setIsTogglingSavedPlace(false);
     }
+  };
+
+  const openPlaceReview = (place: ParkingPlace) => {
+    setIsReviewsModalOpen(false);
+
+    if (onOpenPlaceReview) {
+      onOpenPlaceReview(place);
+      return;
+    }
+
+    Alert.alert("Reseña", "Esta pantalla se abrira desde la navegacion principal.");
+  };
+
+  const openPlaceReviewsModal = () => {
+    setIsReviewsModalOpen(true);
+  };
+
+  const closePlaceReviewsModal = () => {
+    setIsReviewsModalOpen(false);
   };
 
   const onStartAddPlace = () => {
@@ -745,6 +853,7 @@ export default function MapScreen({
   };
 
   const onStartReport = (place: ParkingPlace) => {
+    setIsReviewsModalOpen(false);
     setIsAddMode(false);
     setDraftPlaceCoord(null);
     setSelectedPlaceId(place.id);
@@ -1287,10 +1396,24 @@ export default function MapScreen({
             </View>
 
             <View style={styles.detailsGrid}>
-              <View style={styles.detailTile}>
+              <Pressable
+                testID="open-place-reviews-button"
+                style={[styles.detailTile, styles.detailTilePressable]}
+                onPress={openPlaceReviewsModal}
+              >
                 <Text style={styles.detailLabel}>Calificacion</Text>
-                <Text style={styles.detailValue}>{formatRatingSummary(selectedPlace)}</Text>
-              </View>
+                <View style={styles.ratingBadgeRow}>
+                  <Text style={styles.detailValue}>
+                    {formatRatingBadgeSummary(selectedPlace)}
+                  </Text>
+                  <Text style={styles.ratingBadgeStar}>{"\u2605"}</Text>
+                </View>
+                <Text style={styles.detailHint}>
+                  {selectedPlace.ratingCount > 0
+                    ? "Toca para ver reseñas"
+                    : "Toca para abrir las reseñas"}
+                </Text>
+              </Pressable>
               <View style={styles.detailTile}>
                 <Text style={styles.detailLabel}>Capacidad</Text>
                 <Text style={styles.detailValue}>{formatCapacitySummary(selectedPlace)}</Text>
@@ -1388,10 +1511,11 @@ export default function MapScreen({
                 </Text>
               </Pressable>
               <Pressable
+                testID="open-place-review-button"
                 style={[styles.actionBtn, styles.actionPrimary]}
-                onPress={() => onStartReport(selectedPlace)}
+                onPress={() => openPlaceReview(selectedPlace)}
               >
-                <Text style={styles.actionPrimaryText}>Actualizar estado</Text>
+                <Text style={styles.actionPrimaryText}>Escribir reseña</Text>
               </Pressable>
             </View>
           </BottomSheetScrollView>
@@ -1404,6 +1528,98 @@ export default function MapScreen({
           </Text>
         </View>
       )}
+
+      <Modal
+        visible={Boolean(selectedPlace) && isReviewsModalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={closePlaceReviewsModal}
+      >
+        <View style={styles.reviewsModalBackdrop}>
+          <Pressable
+            style={styles.reviewsModalDismissArea}
+            onPress={closePlaceReviewsModal}
+          />
+
+          {selectedPlace ? (
+            <View style={styles.reviewsModalCard}>
+              <View style={styles.reviewsModalHeader}>
+                <View style={styles.reviewsModalHeaderCopy}>
+                  <Text style={styles.sectionTitle}>Reseñas</Text>
+                  <Text style={styles.sheetSubtitle} numberOfLines={1}>
+                    {selectedPlace.name}
+                  </Text>
+                  <View style={styles.reviewsSummaryRow}>
+                    <Text style={styles.reviewsSummaryText}>
+                      {formatRatingBadgeSummary(selectedPlace)}
+                    </Text>
+                    <Text style={styles.ratingBadgeStar}>{"\u2605"}</Text>
+                  </View>
+                </View>
+
+                <Pressable
+                  testID="close-place-reviews-button"
+                  style={styles.mapPeekButton}
+                  onPress={closePlaceReviewsModal}
+                >
+                  <Text style={styles.mapPeekButtonText}>Cerrar</Text>
+                </Pressable>
+              </View>
+
+              {isLoadingPlaceReviews ? (
+                <View style={styles.reviewsLoadingState}>
+                  <ActivityIndicator size="small" color="#0891b2" />
+                  <Text style={styles.reviewsLoadingText}>Cargando reseñas...</Text>
+                </View>
+              ) : selectedPlaceReviews.length > 0 ? (
+                <ScrollView
+                  style={styles.reviewsScroll}
+                  contentContainerStyle={styles.reviewsScrollContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {selectedPlaceReviews.map((review) => (
+                    <View key={review.id} style={styles.reviewCard}>
+                      <View style={styles.reviewCardHeader}>
+                        <View style={styles.reviewAvatar}>
+                          <Text style={styles.reviewAvatarText}>
+                            {getInitialsFromLabel(
+                              review.reviewerDisplayName ?? "Comunidad"
+                            )}
+                          </Text>
+                        </View>
+                        <View style={styles.reviewCardCopy}>
+                          <Text style={styles.reviewAuthor}>
+                            {review.reviewerDisplayName ?? "Comunidad"}
+                          </Text>
+                          <Text style={styles.reviewTimestamp}>
+                            {getElapsedLabel(review.updatedAt ?? review.createdAt) ??
+                              "Reciente"}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <StarRatingRow value={review.rating} size={18} />
+                      <Text style={styles.reviewBody}>
+                        {review.comment ?? "Sin comentario adicional."}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <View style={styles.reviewsEmptyState}>
+                  <Text style={styles.reviewsEmptyTitle}>
+                    Aun no hay reseñas para este estacionamiento.
+                  </Text>
+                  <Text style={styles.reviewsEmptyBody}>
+                    Usa "Escribir reseña" para compartir la primera experiencia de la
+                    comunidad.
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : null}
+        </View>
+      </Modal>
 
       <Modal visible={isSearchOpen} animationType="fade" transparent onRequestClose={closeSearch}>
         <KeyboardAvoidingView
@@ -1813,8 +2029,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
+  detailTilePressable: {
+    justifyContent: "space-between",
+  },
   detailLabel: { fontSize: 12, color: "#64748b", fontWeight: "700", textTransform: "uppercase" },
   detailValue: { marginTop: 6, fontSize: 15, color: "#0f172a", fontWeight: "800" },
+  detailHint: { marginTop: 8, fontSize: 12, lineHeight: 16, color: "#0891b2", fontWeight: "700" },
+  ratingBadgeRow: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  ratingBadgeStar: {
+    color: "#fbbf24",
+    fontSize: 16,
+    fontWeight: "800",
+  },
   photoSection: { marginTop: 18 },
   photoHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionTitle: { fontSize: 16, color: "#0f172a", fontWeight: "800" },
@@ -1881,6 +2112,127 @@ const styles = StyleSheet.create({
   actionPrimaryText: { color: "white", fontWeight: "800" },
   sheetHint: { paddingVertical: 12 },
   sheetHintText: { fontSize: 13, color: "#334155", fontWeight: "500" },
+  reviewsModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.24)",
+    justifyContent: "flex-end",
+  },
+  reviewsModalDismissArea: {
+    flex: 1,
+  },
+  reviewsModalCard: {
+    maxHeight: "78%",
+    backgroundColor: "#f8fafc",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 24,
+  },
+  reviewsModalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  reviewsModalHeaderCopy: {
+    flex: 1,
+  },
+  reviewsSummaryRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  reviewsSummaryText: {
+    fontSize: 14,
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  reviewsLoadingState: {
+    paddingVertical: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  reviewsLoadingText: {
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  reviewsScroll: {
+    marginTop: 18,
+  },
+  reviewsScrollContent: {
+    paddingBottom: 12,
+  },
+  reviewCard: {
+    marginBottom: 12,
+    backgroundColor: "#ffffff",
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  reviewCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  reviewAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#0ea5e9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reviewAvatarText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  reviewCardCopy: {
+    flex: 1,
+  },
+  reviewAuthor: {
+    fontSize: 15,
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  reviewTimestamp: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  reviewBody: {
+    marginTop: 12,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#334155",
+    fontWeight: "500",
+  },
+  reviewsEmptyState: {
+    marginTop: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  reviewsEmptyTitle: {
+    fontSize: 16,
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  reviewsEmptyBody: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#64748b",
+    fontWeight: "500",
+  },
   sheetHeroDraft: {
     marginTop: 14,
     backgroundColor: "#ecfeff",

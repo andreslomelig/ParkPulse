@@ -10,6 +10,7 @@ import {
 } from "../lib/auth";
 import AuthScreen from "../screens/AuthScreen";
 import MapScreen from "../screens/MapScreen";
+import PlaceReviewScreen from "../screens/PlaceReviewScreen";
 import PrivacyLegalScreen from "../screens/PrivacyLegalScreen";
 import ReportHistoryScreen from "../screens/ReportHistoryScreen";
 import SavedPlacesScreen from "../screens/SavedPlacesScreen";
@@ -20,8 +21,13 @@ export type RootStackParamList = {
     | {
         focusPlaceId?: string;
         focusPlaceRequestId?: number;
+        refreshPlaceRequestId?: number;
       }
     | undefined;
+  PlaceReview: {
+    placeId: string;
+    placeName?: string | null;
+  };
   PrivacyLegal: undefined;
   ReportHistory: undefined;
   SavedPlaces: undefined;
@@ -86,8 +92,37 @@ export default function AppNavigator() {
                   onOpenPrivacyLegal={() => navigation.navigate("PrivacyLegal")}
                   onOpenReportHistory={() => navigation.navigate("ReportHistory")}
                   onOpenSavedPlaces={() => navigation.navigate("SavedPlaces")}
+                  onOpenPlaceReview={(place) =>
+                    navigation.navigate("PlaceReview", {
+                      placeId: place.id,
+                      placeName: place.name,
+                    })
+                  }
                   pendingFocusPlaceId={route.params?.focusPlaceId ?? null}
                   pendingFocusRequestId={route.params?.focusPlaceRequestId ?? null}
+                  pendingPlaceRefreshRequestId={
+                    route.params?.refreshPlaceRequestId ?? null
+                  }
+                />
+              )}
+            </Stack.Screen>
+            <Stack.Screen
+              name="PlaceReview"
+              options={{ title: "Escribir reseña" }}
+            >
+              {({ navigation, route }) => (
+                <PlaceReviewScreen
+                  currentUser={currentUser}
+                  placeId={route.params.placeId}
+                  placeName={route.params.placeName}
+                  onCancel={() => navigation.goBack()}
+                  onReviewSaved={(placeId) =>
+                    navigation.navigate("Map", {
+                      focusPlaceId: placeId,
+                      focusPlaceRequestId: Date.now(),
+                      refreshPlaceRequestId: Date.now(),
+                    })
+                  }
                 />
               )}
             </Stack.Screen>

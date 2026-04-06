@@ -54,6 +54,19 @@ export type ParkingRatingSummary = {
   source: DataSource;
 };
 
+export type ParkingPlaceReview = {
+  id: string;
+  placeId: string;
+  placeName: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  reviewerUserId: string | null;
+  reviewerDisplayName: string | null;
+  source: DataSource;
+};
+
 export function toTrimmedString(value: unknown) {
   if (typeof value !== "string") return null;
 

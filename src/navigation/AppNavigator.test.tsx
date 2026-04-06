@@ -31,11 +31,13 @@ jest.mock("../screens/MapScreen", () => {
     currentUser,
     onSignOut,
     onOpenReportHistory,
+    onOpenPlaceReview,
     onOpenSavedPlaces,
   }: {
     currentUser: { fullName: string | null; email: string };
     onSignOut: () => Promise<void>;
     onOpenReportHistory: () => void;
+    onOpenPlaceReview: (place: { id: string; name: string }) => void;
     onOpenSavedPlaces: () => void;
   }) {
     return React.createElement(
@@ -46,6 +48,18 @@ jest.mock("../screens/MapScreen", () => {
         Pressable,
         { testID: "navigator-open-history-button", onPress: onOpenReportHistory },
         React.createElement(Text, null, "Open history")
+      ),
+      React.createElement(
+        Pressable,
+        {
+          testID: "navigator-open-review-button",
+          onPress: () =>
+            onOpenPlaceReview({
+              id: "place-1",
+              name: "Centro - Plaza Patria",
+            }),
+        },
+        React.createElement(Text, null, "Open review")
       ),
       React.createElement(
         Pressable,
@@ -67,6 +81,15 @@ jest.mock("../screens/ReportHistoryScreen", () => {
 
   return function MockReportHistoryScreen() {
     return React.createElement(Text, null, "Report History Screen");
+  };
+});
+
+jest.mock("../screens/PlaceReviewScreen", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+
+  return function MockPlaceReviewScreen() {
+    return React.createElement(Text, null, "Place Review Screen");
   };
 });
 
@@ -171,6 +194,27 @@ describe("AppNavigator", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Saved Places Screen")).toBeTruthy();
+    });
+  });
+
+  it("navigates to the place review screen from the map flow", async () => {
+    (getCurrentAuthUser as jest.Mock).mockResolvedValue({
+      id: "user-1",
+      email: "ada@example.com",
+      fullName: "Ada Lovelace",
+      phone: "+52 449 123 4567",
+    });
+
+    const screen = render(<AppNavigator />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("navigator-open-review-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("navigator-open-review-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Place Review Screen")).toBeTruthy();
     });
   });
 });

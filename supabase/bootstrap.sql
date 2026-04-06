@@ -7,6 +7,7 @@ create extension if not exists pgcrypto;
 drop view if exists public.place_report_feed cascade;
 drop view if exists public.place_live_status cascade;
 drop view if exists public.place_rating_summary cascade;
+drop view if exists public.place_review_feed cascade;
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -652,6 +653,29 @@ left join public.user_profiles as profile
 
 grant select on public.place_report_feed to anon, authenticated;
 
+create view public.place_review_feed as
+select
+  rating.id,
+  rating.place_id,
+  place.name as place_name,
+  rating.rating,
+  rating.comment,
+  rating.created_at,
+  rating.updated_at,
+  rating.rater_user_id as reviewer_user_id,
+  coalesce(
+    nullif(profile.preferred_name, ''),
+    nullif(profile.full_name, ''),
+    'Comunidad'
+  ) as reviewer_display_name
+from public.place_ratings as rating
+join public.places as place
+  on place.id = rating.place_id
+left join public.user_profiles as profile
+  on profile.user_id = rating.rater_user_id;
+
+grant select on public.place_review_feed to anon, authenticated;
+
 create or replace function public.upsert_place_rating(
   input_place_id uuid,
   input_rating integer,
@@ -668,6 +692,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   actor_user_id uuid;
   actor_session_id text;
@@ -713,9 +738,9 @@ begin
 
   return query
   select
-    summary.place_id,
-    summary.average_rating,
-    summary.rating_count,
+    summary.place_id as place_id,
+    summary.average_rating as average_rating,
+    summary.rating_count as rating_count,
     input_rating as my_rating
   from public.place_rating_summary as summary
   where summary.place_id = input_place_id;

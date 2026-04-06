@@ -14,6 +14,7 @@ import {
   fetchReportsForPlace,
   submitParkingReport,
 } from "../lib/reports";
+import { fetchPlaceReviews } from "../lib/reviews";
 import type { AuthenticatedAppUser } from "../lib/auth";
 import {
   fetchSavedPlaceIds,
@@ -36,6 +37,10 @@ jest.mock("../lib/reports", () => ({
   fetchRecentReports: jest.fn(),
   fetchReportsForPlace: jest.fn(),
   submitParkingReport: jest.fn(),
+}));
+
+jest.mock("../lib/reviews", () => ({
+  fetchPlaceReviews: jest.fn(),
 }));
 
 jest.mock("../lib/savedPlaces", () => ({
@@ -197,6 +202,20 @@ describe("MapScreen", () => {
       reporterDisplayName: "Comunidad",
       source: "remote",
     });
+    (fetchPlaceReviews as jest.Mock).mockResolvedValue([
+      {
+        id: "remote-review-1",
+        placeId: "fallback-1",
+        placeName: "Centro - Plaza Patria",
+        rating: 5,
+        comment: "Excelente ubicacion y maniobra sencilla.",
+        createdAt: "2026-03-18T18:10:00.000Z",
+        updatedAt: "2026-03-18T18:15:00.000Z",
+        reviewerUserId: "user-2",
+        reviewerDisplayName: "Grace Hopper",
+        source: "remote",
+      },
+    ]);
     (fetchSavedPlaceIds as jest.Mock).mockResolvedValue(["fallback-1", "fallback-2"]);
     (toggleSavedPlaceForUser as jest.Mock).mockResolvedValue({
       saved: true,
@@ -383,6 +402,40 @@ describe("MapScreen", () => {
       expect(screen.getByTestId("report-status-available")).toBeTruthy();
       expect(screen.getByTestId("report-status-full")).toBeTruthy();
       expect(screen.getByTestId("report-status-closed")).toBeTruthy();
+    });
+  });
+
+  it("opens the review composer from the place detail action", async () => {
+    const onOpenPlaceReview = jest.fn();
+    const screen = renderMapScreen({ onOpenPlaceReview });
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-place-review-button"));
+
+    expect(onOpenPlaceReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "fallback-1",
+        name: "Centro - Plaza Patria",
+      })
+    );
+  });
+
+  it("opens the reviews modal from the rating tile", async () => {
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-place-reviews-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Reseñas")).toBeTruthy();
+      expect(screen.getByText("Grace Hopper")).toBeTruthy();
+      expect(screen.getByText("Excelente ubicacion y maniobra sencilla.")).toBeTruthy();
     });
   });
 

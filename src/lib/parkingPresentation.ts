@@ -62,6 +62,17 @@ export function formatRatingSummary(place: Pick<
   return `${place.averageRating.toFixed(1)}/5 (${place.ratingCount})`;
 }
 
+export function formatRatingBadgeSummary(place: Pick<
+  ParkingPlace,
+  "averageRating" | "ratingCount"
+>) {
+  if (place.averageRating === null || place.ratingCount === 0) {
+    return "Sin calificaciones";
+  }
+
+  return `${place.averageRating.toFixed(1)} / 5 (${place.ratingCount})`;
+}
+
 export function formatReportVolumeSummary(place: Pick<
   ParkingPlace,
   "totalReportCount"

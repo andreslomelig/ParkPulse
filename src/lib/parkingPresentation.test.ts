@@ -1,6 +1,7 @@
 import {
   formatCapacitySummary,
   formatCostSummary,
+  formatRatingBadgeSummary,
   formatRatingSummary,
   formatReportVolumeSummary,
 } from "./parkingPresentation";
@@ -123,6 +124,12 @@ describe("parkingPresentation", () => {
     expect(formatRatingSummary({ averageRating: 4.25, ratingCount: 18 })).toBe(
       "4.3/5 (18)"
     );
+    expect(
+      formatRatingBadgeSummary({ averageRating: 4.25, ratingCount: 18 })
+    ).toBe("4.3 / 5 (18)");
+    expect(
+      formatRatingBadgeSummary({ averageRating: null, ratingCount: 0 })
+    ).toBe("Sin calificaciones");
 
     expect(formatReportVolumeSummary({ totalReportCount: 0 })).toBe(
       "Sin reportes"
