@@ -10,14 +10,15 @@ anti-spam rules.
 ## Current App Status
 
 -   Map-first pilot experience for Aguascalientes
--   Parking place bottom sheet with richer place details
+-   Required email/password authentication before entering the app
+-   Parking place bottom sheet with richer place details, rating summary and recent history
 -   Search overlay with local client-side filtering
--   Menu shell with saved places / recent reports / login placeholder
--   Local report flow with proximity validation (UI prototype)
--   Supabase read integration for seeded `places`
+-   Session-aware menu with user identity and sign out
+-   Persistent parking creation flow backed by Supabase RPCs
+-   Report flow with proximity validation connected to Supabase
+-   Supabase schema integrated for `user_profiles`, `places`, `place_reports` and `place_ratings`
 
-Backend write flows, OTP auth, TTL enforcement, and server-side rate
-limits are still pending.
+OTP auth and stricter server-side rate limits are still pending.
 
 ------------------------------------------------------------------------
 
@@ -25,7 +26,7 @@ limits are still pending.
 
 -   Map with parking places (pilot zone)
 -   Place details: status, last updated, confidence
--   Phone login required to report
+-   Email/password login required to use the app
 -   Reports expire automatically (TTL)
 -   Proximity validation + rate limiting
 
@@ -133,7 +134,15 @@ Use `.env.example` for placeholders only.
 - Run the SQL in [supabase/bootstrap.sql](supabase/bootstrap.sql) inside Supabase SQL Editor.
 - Full setup guide: [docs/supabase-setup.md](docs/supabase-setup.md)
 
-This creates the `places` table and seeds pilot markers for Aguascalientes.
+This creates:
+
+- `user_profiles` for personal user data synced from `auth.users`
+- `places` for parking metadata, pricing, coordinates and capacity ranges
+- `place_reports` for availability history with timestamps and reporter identity
+- `place_ratings` for community ratings per parking place
+- `place_live_status` and `place_report_feed` for frontend-friendly reads
+- RPC endpoints: `create_place`, `create_place_report`, `upsert_place_rating`
+- Optional SQL helper: `get_place_report_history(place_id, limit)`
 
 ------------------------------------------------------------------------
 
@@ -143,6 +152,8 @@ This creates the `places` table and seeds pilot markers for Aguascalientes.
 -   `npm run lint` --- Run ESLint
 -   `npm run typecheck` --- Run TypeScript checks
 -   `npm test` --- Run frontend Jest tests
+-   `npm test -- --coverage --runInBand` --- Enforce 100% coverage for `src/lib`
+-   `npx expo start -c` --- To erase the local mobile cache (to restart all information in-device)
 
 ------------------------------------------------------------------------
 
@@ -172,11 +183,16 @@ GitHub Actions runs on Pull Requests:
 
 ## Frontend Testing
 
-Current UI test coverage focuses on stable frontend behavior instead of
-gesture feel:
+Testing now covers two levels:
+
+-   100% coverage enforced for the data/API layer in `src/lib`
+-   UI interaction tests for the map flows that matter most to the product
+
+Current UI coverage focuses on stable frontend behavior instead of gesture feel:
 
 -   search overlay opens and filters places
 -   menu shell opens
+-   parking place creation calls the persistent API
 -   report flow opens from the place sheet
 -   nearby report submission shows confirmation
 
@@ -184,6 +200,7 @@ Files:
 
 -   `jest.config.js`
 -   `jest.setup.ts`
+-   `src/lib/*.test.ts`
 -   `src/screens/MapScreen.test.tsx`
 
 ------------------------------------------------------------------------
