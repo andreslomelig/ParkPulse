@@ -1,225 +1,314 @@
 # ParkPulse
 
-Community-powered parking availability for **Aguascalientes (pilot)**.\
-Think **"Waze for parking"**: users report **Disponible / Lleno /
-Cerrado** in real time with expiration (TTL), proximity checks, and
-anti-spam rules.
+Community-powered parking discovery for **Aguascalientes (pilot)**.
 
-------------------------------------------------------------------------
+ParkPulse is a map-first mobile app for finding and validating parking with
+community input. Users can sign in, explore parking places, report real-time
+availability, save favorite places, rate and review parking lots, and maintain
+their own profile with theme and avatar customization.
 
-## Current App Status
+## What The App Does Now
 
--   Map-first pilot experience for Aguascalientes
--   Required email/password authentication before entering the app
--   Parking place bottom sheet with richer place details, rating summary and recent history
--   Search overlay with local client-side filtering
--   Session-aware menu with user identity and sign out
--   Editable profile settings with theme selection and profile photo support
--   Persistent parking creation flow backed by Supabase RPCs
--   Report flow with proximity validation connected to Supabase
--   Supabase schema integrated for `user_profiles`, `places`, `place_reports` and `place_ratings`
+- Email/password authentication with Supabase Auth
+- Map-first parking exploration for Aguascalientes
+- Rich place detail sheet with:
+  - live status
+  - last update
+  - report activity summary
+  - rating summary
+  - hours, pricing, capacity, and access details
+- Search overlay with local filtering
+- Parking place creation flow backed by Supabase RPCs
+- Report submission flow with proximity information and TTL-based status expiry
+- Review composer with star rating and optional comment
+- Review list modal per parking place
+- Saved places list per signed-in user
+- Personal report history screen
+- Editable profile/settings screen with:
+  - preferred name
+  - full name
+  - phone
+  - avatar URL
+  - profile photo upload from device to Supabase Storage
+  - local theme preference
 
-OTP auth and stricter server-side rate limits are still pending.
+## Current Product Status
 
-------------------------------------------------------------------------
+Implemented:
 
-## MVP (Pilot Scope)
+- Authenticated app shell
+- Persistent `places`, `place_reports`, `place_ratings`, and `user_profiles`
+- Storage bucket for user avatars
+- Frontend flows for create place, report, save, review, and profile editing
+- Data-layer test coverage across `src/lib`
+- UI tests for key app flows
 
--   Map with parking places (pilot zone)
--   Place details: status, last updated, confidence
--   Email/password login required to use the app
--   Reports expire automatically (TTL)
--   Proximity validation + rate limiting
+Still pending or intentionally incomplete:
 
-------------------------------------------------------------------------
+- OTP / phone auth
+- Admin moderation tools
+- Stricter server-side reputation and anti-abuse controls
+- Bot resistance and contributor reliability scoring
+- Realtime subscriptions
+- Reservations / payments
+
+## Core Domain Model
+
+The current Supabase bootstrap creates and uses:
+
+- `user_profiles`
+  - profile data tied to `auth.users`
+  - fields include `email`, `phone`, `full_name`, `preferred_name`, `avatar_url`
+- `places`
+  - persistent parking lot catalog
+  - coordinates, description, pricing, hours, capacity, access type, and status
+- `place_reports`
+  - availability reports from users or session actors
+  - TTL-based expiration per status
+- `place_ratings`
+  - one rating/comment identity per place
+- `place_live_status`
+  - frontend-friendly live place read model
+- `place_report_feed`
+  - frontend-friendly report history read model
+- `place_review_feed`
+  - frontend-friendly review feed
+- `avatars` storage bucket
+  - profile images uploaded from the app
+
+RPCs:
+
+- `create_place(...)`
+- `create_place_report(...)`
+- `upsert_place_rating(...)`
+- optional helper: `get_place_report_history(...)`
+
+## Pilot Rules In The Current App
+
+- Pilot city: Aguascalientes
+- Parking status options:
+  - `available`
+  - `full`
+  - `closed`
+- TTL defaults:
+  - `available`: 15 minutes
+  - `full`: 30 minutes
+  - `closed`: 12 hours
+- Report proximity target:
+  - 200 meters in the current frontend flow
 
 ## Tech Stack
 
--   **Expo + React Native (TypeScript)**
--   **react-native-maps**
--   **@gorhom/bottom-sheet**
--   **react-native-gesture-handler**
--   **react-native-reanimated**
--   **Supabase (Postgres + PostGIS)** *(backend planned / in progress)*
--   **GitHub Actions (CI)**
--   **Jest + React Native Testing Library**
--   **EAS Build (release pipeline)**
+- Expo
+- React Native
+- TypeScript
+- `react-native-maps`
+- `@gorhom/bottom-sheet`
+- `react-native-gesture-handler`
+- `react-native-reanimated`
+- Supabase
+  - Auth
+  - Postgres
+  - Storage
+- Jest
+- React Native Testing Library
 
-------------------------------------------------------------------------
+## Project Structure
+
+```text
+src/
+  components/
+  i18n/
+  lib/
+  navigation/
+  screens/
+docs/
+supabase/
+assets/
+```
+
+Important areas:
+
+- [App.tsx](./App.tsx): app root
+- [src/navigation/AppNavigator.tsx](./src/navigation/AppNavigator.tsx): auth-aware navigation
+- [src/screens/MapScreen.tsx](./src/screens/MapScreen.tsx): main product flow
+- [src/screens/ProfileSettingsScreen.tsx](./src/screens/ProfileSettingsScreen.tsx): profile/theme/avatar settings
+- [src/lib/places.ts](./src/lib/places.ts): places API and normalization
+- [src/lib/reports.ts](./src/lib/reports.ts): reports API and normalization
+- [src/lib/reviews.ts](./src/lib/reviews.ts): review feed reads
+- [src/lib/ratings.ts](./src/lib/ratings.ts): rating writes
+- [src/lib/profiles.ts](./src/lib/profiles.ts): profile reads/writes
+- [src/lib/avatarUploads.ts](./src/lib/avatarUploads.ts): device image picker + avatar upload
+- [supabase/bootstrap.sql](./supabase/bootstrap.sql): database and storage bootstrap
 
 ## Getting Started
 
 ### Prerequisites
 
--   Node.js 22 recommended (`.nvmrc` included)
--   npm
--   Expo CLI (via `npx`)
--   (Optional) Android Studio / Xcode for simulators
+- Node.js 22 recommended
+- npm
+- Expo CLI through `npx`
+- Optional:
+  - Android Studio
+  - Xcode
 
 If you use `nvm`:
 
-``` bash
+```bash
 nvm use
 ```
 
-------------------------------------------------------------------------
-
 ### Install
 
-``` bash
+```bash
 npm install
 ```
 
-------------------------------------------------------------------------
+### Environment Variables
 
-### Run (Development)
+Create a `.env` file from `.env.example` and set:
 
-``` bash
+```env
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+```
+
+Do not commit `.env`.
+
+### Run The App
+
+```bash
 npm run start
 ```
 
-Use a clean cache if native UI packages were added or updated:
+If native packages changed, use a clean Expo cache:
 
-``` bash
+```bash
 npx expo start -c
 ```
 
-------------------------------------------------------------------------
+## Supabase Setup
+
+Run the SQL in [supabase/bootstrap.sql](./supabase/bootstrap.sql) inside Supabase SQL Editor.
+
+Full setup guide:
+
+- [docs/supabase-setup.md](./docs/supabase-setup.md)
+
+The bootstrap sets up:
+
+- profile sync from `auth.users`
+- places schema and seed data
+- report and rating tables
+- frontend-oriented views
+- avatar storage bucket
+- RLS policies for profile data and avatar uploads
+
+## Avatar Upload Setup
+
+The app now supports picking a profile picture from the device and uploading it
+to Supabase Storage.
+
+Requirements in Supabase:
+
+- bucket name must be exactly `avatars`
+- bucket can be public for simple profile images
+- storage policies must allow authenticated uploads
+
+Current app upload path format:
+
+```text
+<auth.uid()>/avatar.<ext>
+```
+
+The uploaded public URL is saved into:
+
+```text
+public.user_profiles.avatar_url
+```
+
+If you migrated or rebuilt your Supabase project, rerun the latest
+[supabase/bootstrap.sql](./supabase/bootstrap.sql) so Storage policies and the
+bucket match the current app code.
+
+## Available Scripts
+
+- `npm run start`: start Expo / Metro
+- `npm run android`: open Android target
+- `npm run ios`: open iOS target
+- `npm run web`: open web target
+- `npm run lint`: run ESLint
+- `npm run typecheck`: run TypeScript checks
+- `npm test`: run Jest
+
+## Testing
+
+Current automated testing covers:
+
+- normalized data and API behavior in `src/lib`
+- navigation behavior
+- key screen flows such as:
+  - map loading
+  - search
+  - save place
+  - create place
+  - submit report
+  - open reviews
+  - profile settings
+  - avatar upload helper
+
+Important test files include:
+
+- `src/lib/*.test.ts`
+- `src/navigation/AppNavigator.test.tsx`
+- `src/screens/MapScreen.test.tsx`
+- `src/screens/ProfileSettingsScreen.test.tsx`
+
+## Known Product Gaps
+
+These are the main areas still needing work:
+
+- stronger server-side rate limiting
+- anti-troll review/report moderation
+- reliability scoring for contributors
+- bot detection / abuse prevention
+- admin review tools
+- better conflict resolution for place edits
 
 ## Troubleshooting
 
-### `node` or `npm` fails before install
+### Uploads Fail With RLS Errors
 
-If you see an error similar to:
+If profile picture upload fails with:
 
-    Library not loaded: ... libsimdjson ...
-
-your local Homebrew Node installation is broken, so the app cannot start yet.
-
-Fix it by reinstalling Node, or by using `nvm` with the version in `.nvmrc`.
-
-Example with Homebrew:
-
-``` bash
-brew reinstall simdjson
-brew reinstall node
+```text
+new row violates row-level security policy
 ```
 
-Example with `nvm`:
+then the problem is usually in Supabase Storage setup, not the app UI.
 
-``` bash
-nvm install 22
-nvm use 22
-npm install
-npm run start
-```
+Check:
 
-------------------------------------------------------------------------
+- the `avatars` bucket exists
+- old conflicting storage policies are removed
+- the latest bootstrap SQL has been applied
 
-## Environment Variables
+### Native / Node Setup Problems
 
-Create a `.env` file based on `.env.example`.
-
-### Required
-
-    EXPO_PUBLIC_SUPABASE_URL=
-    EXPO_PUBLIC_SUPABASE_ANON_KEY=
-
-Never commit `.env`.\
-Use `.env.example` for placeholders only.
-
-------------------------------------------------------------------------
-
-## Supabase Bootstrap (Now Available)
-
-- Run the SQL in [supabase/bootstrap.sql](supabase/bootstrap.sql) inside Supabase SQL Editor.
-- Full setup guide: [docs/supabase-setup.md](docs/supabase-setup.md)
-
-This creates:
-
-- `user_profiles` for personal user data synced from `auth.users`
-- `avatars` storage bucket for profile pictures
-- `places` for parking metadata, pricing, coordinates and capacity ranges
-- `place_reports` for availability history with timestamps and reporter identity
-- `place_ratings` for community ratings per parking place
-- `place_live_status` and `place_report_feed` for frontend-friendly reads
-- RPC endpoints: `create_place`, `create_place_report`, `upsert_place_rating`
-- Optional SQL helper: `get_place_report_history(place_id, limit)`
-
-------------------------------------------------------------------------
-
-## Scripts
-
--   `npm run start` --- Start Metro bundler
--   `npm run lint` --- Run ESLint
--   `npm run typecheck` --- Run TypeScript checks
--   `npm test` --- Run frontend Jest tests
--   `npm test -- --coverage --runInBand` --- Enforce 100% coverage for `src/lib`
--   `npx expo start -c` --- To erase the local mobile cache (to restart all information in-device)
-
-------------------------------------------------------------------------
-
-## Project Structure (WIP)
-
-    src/
-      navigation/
-      screens/
-      components/
-      lib/
-      i18n/
-    docs/
-    .github/workflows/
-
-------------------------------------------------------------------------
-
-## CI
-
-GitHub Actions runs on Pull Requests:
-
--   expo-doctor
--   lint
--   typecheck
--   test
-
-------------------------------------------------------------------------
-
-## Frontend Testing
-
-Testing now covers two levels:
-
--   100% coverage enforced for the data/API layer in `src/lib`
--   UI interaction tests for the map flows that matter most to the product
-
-Current UI coverage focuses on stable frontend behavior instead of gesture feel:
-
--   search overlay opens and filters places
--   menu shell opens
--   parking place creation calls the persistent API
--   report flow opens from the place sheet
--   nearby report submission shows confirmation
-
-Files:
-
--   `jest.config.js`
--   `jest.setup.ts`
--   `src/lib/*.test.ts`
--   `src/screens/MapScreen.test.tsx`
-
-------------------------------------------------------------------------
+If `npm` or `node` fails before install, repair your Node environment or use
+the version declared by `.nvmrc`.
 
 ## Contributing
 
--   Create a branch per Jira ticket:
+- Create one branch per ticket
+- Use conventional commits
 
-        feature/PD-XX-short-title
+Example:
 
--   Use Conventional Commits:
-
-        feat(scope): message (PD-XX)
-
-------------------------------------------------------------------------
+```text
+feat(profile): add avatar upload flow
+```
 
 ## License
 
-Proprietary (for now).\
-Update when ready.
+Proprietary for now.
