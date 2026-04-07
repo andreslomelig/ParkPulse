@@ -128,7 +128,7 @@ export default function ProfileSettingsScreen({
     return () => {
       active = false;
     };
-  }, [currentUser.fullName, currentUser.id, currentUser.phone]);
+  }, [currentUser]);
 
   const selectedTheme = useMemo(
     () => getThemePalette(formState.themeName),

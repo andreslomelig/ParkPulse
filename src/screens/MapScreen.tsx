@@ -1867,8 +1867,8 @@ export default function MapScreen({
                     Aun no hay reseñas para este estacionamiento.
                   </Text>
                   <Text style={styles.reviewsEmptyBody}>
-                    Usa "Escribir reseña" para compartir la primera experiencia de la
-                    comunidad.
+                    Usa &quot;Escribir reseña&quot; para compartir la primera experiencia
+                    de la comunidad.
                   </Text>
                 </View>
               )}

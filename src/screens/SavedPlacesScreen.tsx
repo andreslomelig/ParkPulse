@@ -244,8 +244,8 @@ export default function SavedPlacesScreen({
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Todavia no tienes lugares guardados.</Text>
               <Text style={styles.emptyBody}>
-                Cuando toques "Guardar" desde la ficha de un estacionamiento, lo
-                veras aqui con su estado mas reciente.
+                Cuando toques &quot;Guardar&quot; desde la ficha de un estacionamiento,
+                lo veras aqui con su estado mas reciente.
               </Text>
             </View>
           ) : (
