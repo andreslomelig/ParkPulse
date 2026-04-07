@@ -15,6 +15,7 @@ This script now creates:
 - `place_ratings` as the parking rating table
 - `place_live_status` as the frontend-friendly live status view
 - `place_report_feed` as the recent-history feed with reporter display name
+- `avatars` storage bucket for profile pictures
 
 It also creates these RPC endpoints:
 - `create_place(...)`
@@ -48,6 +49,7 @@ If `.env` values are valid:
 - new parking places are persisted through `create_place`
 - reports are persisted through `create_place_report`
 - place history loads from `place_report_feed`
+- users can upload profile pictures to the `avatars` bucket from the profile screen
 
 If your Supabase project requires email confirmation:
 - sign up will create the account first
@@ -63,6 +65,20 @@ Run a quick smoke test after the bootstrap:
 select * from public.place_live_status order by name;
 select * from public.place_report_feed order by created_at desc limit 5;
 select * from public.user_profiles limit 5;
+select id, name, public from storage.buckets where id = 'avatars';
 ```
 
 If you already have users in `auth.users`, `user_profiles` will be backfilled automatically by the bootstrap.
+
+## Avatar Upload Notes
+
+The bootstrap now creates a public storage bucket named `avatars`.
+
+Upload rules:
+- authenticated users can upload only inside `avatars/<auth.uid()>/...`
+- authenticated users can update/delete only their own files
+- files are publicly readable because the bucket is public
+
+App convention:
+- ParkPulse uploads the file to `avatars/<user-id>/avatar.<ext>`
+- the resulting public URL is saved in `public.user_profiles.avatar_url`

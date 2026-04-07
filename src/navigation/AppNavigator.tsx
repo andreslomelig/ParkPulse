@@ -12,8 +12,11 @@ import AuthScreen from "../screens/AuthScreen";
 import MapScreen from "../screens/MapScreen";
 import PlaceReviewScreen from "../screens/PlaceReviewScreen";
 import PrivacyLegalScreen from "../screens/PrivacyLegalScreen";
+import ProfileSettingsScreen from "../screens/ProfileSettingsScreen";
 import ReportHistoryScreen from "../screens/ReportHistoryScreen";
 import SavedPlacesScreen from "../screens/SavedPlacesScreen";
+import { fetchCurrentUserProfile } from "../lib/profiles";
+import { type AppThemeName } from "../lib/themePreferences";
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -29,6 +32,7 @@ export type RootStackParamList = {
     placeName?: string | null;
   };
   PrivacyLegal: undefined;
+  ProfileSettings: undefined;
   ReportHistory: undefined;
   SavedPlaces: undefined;
 };
@@ -42,11 +46,40 @@ export default function AppNavigator() {
   useEffect(() => {
     let active = true;
 
+    const syncCurrentUserProfile = async (baseUser: AuthenticatedAppUser | null) => {
+      if (!active) return;
+
+      if (!baseUser) {
+        setCurrentUser(null);
+        setIsAuthLoading(false);
+        return;
+      }
+
+      try {
+        const profile = await fetchCurrentUserProfile();
+        if (!active) return;
+
+        setCurrentUser({
+          ...baseUser,
+          fullName: profile?.preferredName ?? profile?.fullName ?? baseUser.fullName,
+          phone: profile?.phone ?? baseUser.phone,
+          avatarUrl: profile?.avatarUrl ?? baseUser.avatarUrl,
+        });
+      } catch (error) {
+        console.error(error);
+        if (!active) return;
+        setCurrentUser(baseUser);
+      } finally {
+        if (active) {
+          setIsAuthLoading(false);
+        }
+      }
+    };
+
     getCurrentAuthUser()
       .then((user) => {
         if (!active) return;
-        setCurrentUser(user);
-        setIsAuthLoading(false);
+        void syncCurrentUserProfile(user);
       })
       .catch((error) => {
         console.error(error);
@@ -57,8 +90,7 @@ export default function AppNavigator() {
 
     const unsubscribe = subscribeToAuthChanges((user) => {
       if (!active) return;
-      setCurrentUser(user);
-      setIsAuthLoading(false);
+      void syncCurrentUserProfile(user);
     });
 
     return () => {
@@ -90,6 +122,7 @@ export default function AppNavigator() {
                   currentUser={currentUser}
                   onSignOut={signOutCurrentUser}
                   onOpenPrivacyLegal={() => navigation.navigate("PrivacyLegal")}
+                  onOpenProfileSettings={() => navigation.navigate("ProfileSettings")}
                   onOpenReportHistory={() => navigation.navigate("ReportHistory")}
                   onOpenSavedPlaces={() => navigation.navigate("SavedPlaces")}
                   onOpenPlaceReview={(place) =>
@@ -123,6 +156,39 @@ export default function AppNavigator() {
                       refreshPlaceRequestId: Date.now(),
                     })
                   }
+                />
+              )}
+            </Stack.Screen>
+            <Stack.Screen
+              name="ProfileSettings"
+              options={{ title: "Perfil y tema" }}
+            >
+              {({ navigation }) => (
+                <ProfileSettingsScreen
+                  currentUser={currentUser}
+                  onCancel={() => navigation.goBack()}
+                  onProfileSaved={({
+                    fullName,
+                    phone,
+                    avatarUrl,
+                  }: {
+                    fullName: string | null;
+                    phone: string | null;
+                    avatarUrl: string | null;
+                    themeName: AppThemeName;
+                  }) => {
+                    setCurrentUser((previousUser) =>
+                      previousUser
+                        ? {
+                            ...previousUser,
+                            fullName: fullName ?? previousUser.fullName,
+                            phone,
+                            avatarUrl,
+                          }
+                        : previousUser
+                    );
+                    navigation.goBack();
+                  }}
                 />
               )}
             </Stack.Screen>

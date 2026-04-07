@@ -6,6 +6,7 @@ export type AuthenticatedAppUser = {
   email: string;
   fullName: string | null;
   phone: string | null;
+  avatarUrl: string | null;
 };
 
 export type SignInInput = {
@@ -32,6 +33,7 @@ type RawAuthUser = {
   user_metadata?: {
     full_name?: string | null;
     phone?: string | null;
+    avatar_url?: string | null;
   } | null;
 };
 
@@ -52,6 +54,7 @@ function mapAuthUser(user: RawAuthUser | null | undefined): AuthenticatedAppUser
     email,
     fullName: toTrimmedString(user?.user_metadata?.full_name),
     phone: toTrimmedString(user?.phone) ?? toTrimmedString(user?.user_metadata?.phone),
+    avatarUrl: toTrimmedString(user?.user_metadata?.avatar_url),
   };
 }
 

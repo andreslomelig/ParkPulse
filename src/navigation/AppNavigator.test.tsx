@@ -7,11 +7,16 @@ import {
   signOutCurrentUser,
   subscribeToAuthChanges,
 } from "../lib/auth";
+import { fetchCurrentUserProfile } from "../lib/profiles";
 
 jest.mock("../lib/auth", () => ({
   getCurrentAuthUser: jest.fn(),
   signOutCurrentUser: jest.fn(),
   subscribeToAuthChanges: jest.fn(),
+}));
+
+jest.mock("../lib/profiles", () => ({
+  fetchCurrentUserProfile: jest.fn(),
 }));
 
 jest.mock("../screens/AuthScreen", () => {
@@ -31,12 +36,14 @@ jest.mock("../screens/MapScreen", () => {
     currentUser,
     onSignOut,
     onOpenReportHistory,
+    onOpenProfileSettings,
     onOpenPlaceReview,
     onOpenSavedPlaces,
   }: {
-    currentUser: { fullName: string | null; email: string };
+    currentUser: { fullName: string | null; email: string; avatarUrl?: string | null };
     onSignOut: () => Promise<void>;
     onOpenReportHistory: () => void;
+    onOpenProfileSettings: () => void;
     onOpenPlaceReview: (place: { id: string; name: string }) => void;
     onOpenSavedPlaces: () => void;
   }) {
@@ -48,6 +55,11 @@ jest.mock("../screens/MapScreen", () => {
         Pressable,
         { testID: "navigator-open-history-button", onPress: onOpenReportHistory },
         React.createElement(Text, null, "Open history")
+      ),
+      React.createElement(
+        Pressable,
+        { testID: "navigator-open-profile-button", onPress: onOpenProfileSettings },
+        React.createElement(Text, null, "Open profile")
       ),
       React.createElement(
         Pressable,
@@ -84,6 +96,15 @@ jest.mock("../screens/ReportHistoryScreen", () => {
   };
 });
 
+jest.mock("../screens/ProfileSettingsScreen", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+
+  return function MockProfileSettingsScreen() {
+    return React.createElement(Text, null, "Profile Settings Screen");
+  };
+});
+
 jest.mock("../screens/PlaceReviewScreen", () => {
   const React = require("react");
   const { Text } = require("react-native");
@@ -106,6 +127,7 @@ describe("AppNavigator", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (subscribeToAuthChanges as jest.Mock).mockReturnValue(() => undefined);
+    (fetchCurrentUserProfile as jest.Mock).mockResolvedValue(null);
   });
 
   it("shows the auth screen when there is no active session", async () => {
@@ -194,6 +216,27 @@ describe("AppNavigator", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Saved Places Screen")).toBeTruthy();
+    });
+  });
+
+  it("navigates to profile settings from the map flow", async () => {
+    (getCurrentAuthUser as jest.Mock).mockResolvedValue({
+      id: "user-1",
+      email: "ada@example.com",
+      fullName: "Ada Lovelace",
+      phone: "+52 449 123 4567",
+    });
+
+    const screen = render(<AppNavigator />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("navigator-open-profile-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("navigator-open-profile-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Profile Settings Screen")).toBeTruthy();
     });
   });
 

@@ -14,6 +14,7 @@ anti-spam rules.
 -   Parking place bottom sheet with richer place details, rating summary and recent history
 -   Search overlay with local client-side filtering
 -   Session-aware menu with user identity and sign out
+-   Editable profile settings with theme selection and profile photo support
 -   Persistent parking creation flow backed by Supabase RPCs
 -   Report flow with proximity validation connected to Supabase
 -   Supabase schema integrated for `user_profiles`, `places`, `place_reports` and `place_ratings`
@@ -137,6 +138,7 @@ Use `.env.example` for placeholders only.
 This creates:
 
 - `user_profiles` for personal user data synced from `auth.users`
+- `avatars` storage bucket for profile pictures
 - `places` for parking metadata, pricing, coordinates and capacity ranges
 - `place_reports` for availability history with timestamps and reporter identity
 - `place_ratings` for community ratings per parking place

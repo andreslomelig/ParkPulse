@@ -194,6 +194,7 @@ describe("auth", () => {
       email: "ada@example.com",
       fullName: "Ada Lovelace",
       phone: "+52 449 123 4567",
+      avatarUrl: null,
     });
   });
 
@@ -265,6 +266,7 @@ describe("auth", () => {
       email: "grace@example.com",
       fullName: "Grace Hopper",
       phone: "+1 555 0101",
+      avatarUrl: null,
     });
     expect(onUserChange).toHaveBeenNthCalledWith(2, null);
     expect(onUserChange).toHaveBeenCalledTimes(2);
@@ -303,6 +305,7 @@ describe("auth", () => {
       email: "linus@example.com",
       fullName: "Linus Torvalds",
       phone: "+34 600 000 000",
+      avatarUrl: null,
     });
   });
 
@@ -339,6 +342,7 @@ describe("auth", () => {
       email: "ada@example.com",
       fullName: "Ada Lovelace",
       phone: null,
+      avatarUrl: null,
     });
 
     expect(signInWithPasswordMock).toHaveBeenCalledWith({
@@ -429,6 +433,7 @@ describe("auth", () => {
         email: "ada@example.com",
         fullName: "Ada Lovelace",
         phone: "+52 449 123 4567",
+        avatarUrl: null,
       },
       needsEmailConfirmation: false,
     });
@@ -446,6 +451,7 @@ describe("auth", () => {
         email: "grace@example.com",
         fullName: "Grace Hopper",
         phone: "+1 555 0101",
+        avatarUrl: null,
       },
       needsEmailConfirmation: true,
     });

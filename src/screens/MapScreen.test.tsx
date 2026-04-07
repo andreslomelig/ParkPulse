@@ -107,6 +107,7 @@ const currentUser: AuthenticatedAppUser = {
   email: "ada@example.com",
   fullName: "Ada Lovelace",
   phone: "+52 449 123 4567",
+  avatarUrl: null,
 };
 
 function renderMapScreen(overrideProps: Partial<React.ComponentProps<typeof MapScreen>> = {}) {
@@ -386,6 +387,25 @@ describe("MapScreen", () => {
     fireEvent.press(screen.getByTestId("open-saved-places-button"));
 
     expect(onOpenSavedPlaces).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens profile settings from the menu", async () => {
+    const onOpenProfileSettings = jest.fn();
+    const screen = renderMapScreen({ onOpenProfileSettings });
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-menu-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("open-profile-settings-button")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-profile-settings-button"));
+
+    expect(onOpenProfileSettings).toHaveBeenCalledTimes(1);
   });
 
   it("opens report validation options from the place sheet", async () => {

@@ -5,6 +5,7 @@ import {
   Linking,
   Modal,
   ActivityIndicator,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -75,6 +76,7 @@ type NewPlaceDraft = {
 
 export type MapScreenProps = {
   currentUser: AuthenticatedAppUser;
+  onOpenProfileSettings?: () => void;
   onOpenPrivacyLegal?: () => void;
   onOpenReportHistory?: () => void;
   onOpenSavedPlaces?: () => void;
@@ -337,6 +339,7 @@ function distanceInMeters(from: LatLng, to: LatLng) {
 
 export default function MapScreen({
   currentUser,
+  onOpenProfileSettings,
   onOpenReportHistory,
   onOpenPlaceReview,
   onOpenPrivacyLegal,
@@ -668,6 +671,17 @@ export default function MapScreen({
     }
 
     Alert.alert("Privacidad y legal", "Esta seccion se abrira desde la navegacion principal.");
+  };
+
+  const openProfileSettings = () => {
+    closeMenu();
+
+    if (onOpenProfileSettings) {
+      onOpenProfileSettings();
+      return;
+    }
+
+    Alert.alert("Perfil y tema", "Esta seccion se abrira desde la navegacion principal.");
   };
 
   const openReportHistory = () => {
@@ -1968,7 +1982,14 @@ export default function MapScreen({
           <View style={styles.menuPanel}>
             <View style={styles.menuProfileCard}>
               <View style={styles.menuAvatar}>
-                <Text style={styles.menuAvatarText}>{getUserInitials(currentUser)}</Text>
+                {currentUser.avatarUrl ? (
+                  <Image
+                    source={{ uri: currentUser.avatarUrl }}
+                    style={styles.menuAvatarImage}
+                  />
+                ) : (
+                  <Text style={styles.menuAvatarText}>{getUserInitials(currentUser)}</Text>
+                )}
               </View>
               <View style={styles.menuProfileCopy}>
                 <Text style={styles.menuProfileTitle}>{getUserDisplayName(currentUser)}</Text>
@@ -1991,6 +2012,21 @@ export default function MapScreen({
               contentContainerStyle={styles.menuScrollContent}
               showsVerticalScrollIndicator={false}
             >
+              <View style={styles.menuSection}>
+                <Text style={styles.menuSectionTitle}>Tu cuenta</Text>
+                <Pressable
+                  testID="open-profile-settings-button"
+                  style={styles.menuActionRow}
+                  onPress={openProfileSettings}
+                >
+                  <Text style={styles.menuActionIcon}>◐</Text>
+                  <View style={styles.menuActionCopy}>
+                    <Text style={styles.menuActionTitle}>Perfil y tema</Text>
+                    <Text style={styles.menuActionSubtitle}>Edita tu nombre visible, telefono y estilo</Text>
+                  </View>
+                </Pressable>
+              </View>
+
               <View style={styles.menuSection}>
                 <Text style={styles.menuSectionTitle}>Tu actividad</Text>
                 <Pressable
@@ -2743,6 +2779,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#0ea5e9",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  menuAvatarImage: {
+    width: "100%",
+    height: "100%",
   },
   menuAvatarText: { color: "#ffffff", fontSize: 18, fontWeight: "900" },
   menuProfileCopy: { marginTop: 12 },

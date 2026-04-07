@@ -19,6 +19,7 @@ const currentUser: AuthenticatedAppUser = {
   email: "ada@example.com",
   fullName: "Ada Lovelace",
   phone: "+52 449 123 4567",
+  avatarUrl: null,
 };
 
 describe("PlaceReviewScreen", () => {

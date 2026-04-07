@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -147,7 +148,14 @@ export default function PlaceReviewScreen({
           <View style={styles.formCard}>
             <View style={styles.profileRow}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{getUserInitials(currentUser)}</Text>
+                {currentUser.avatarUrl ? (
+                  <Image
+                    source={{ uri: currentUser.avatarUrl }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <Text style={styles.avatarText}>{getUserInitials(currentUser)}</Text>
+                )}
               </View>
               <View style={styles.profileCopy}>
                 <Text style={styles.profileName}>{getUserDisplayName(currentUser)}</Text>
@@ -277,6 +285,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#0ea5e9",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   avatarText: {
     color: "#ffffff",
