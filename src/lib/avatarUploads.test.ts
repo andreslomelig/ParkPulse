@@ -74,6 +74,10 @@ describe("avatarUploads", () => {
 
     (requireSupabaseClient as jest.Mock).mockReturnValue({
       auth: {
+        getSession: jest.fn().mockResolvedValue({
+          data: { session: { access_token: "token" } },
+          error: null,
+        }),
         getUser: jest.fn().mockResolvedValue({
           data: { user: { id: "user-1" } },
           error: null,
