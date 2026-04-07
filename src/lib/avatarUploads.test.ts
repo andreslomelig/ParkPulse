@@ -18,6 +18,10 @@ describe("avatarUploads", () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("picks and normalizes an avatar image", async () => {
     const ImagePicker = jest.requireMock("expo-image-picker");
     ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true });
@@ -59,6 +63,7 @@ describe("avatarUploads", () => {
   });
 
   it("uploads the selected image to the avatars bucket", async () => {
+    jest.spyOn(Date, "now").mockReturnValue(1_712_345_678_901);
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(8)),
@@ -98,7 +103,7 @@ describe("avatarUploads", () => {
         fileExtension: "jpg",
       })
     ).resolves.toBe(
-      "https://project.supabase.co/storage/v1/object/public/avatars/user-1/avatar.jpg"
+      "https://project.supabase.co/storage/v1/object/public/avatars/user-1/avatar.jpg?updatedAt=1712345678901"
     );
   });
 });

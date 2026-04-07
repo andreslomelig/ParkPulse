@@ -121,7 +121,7 @@ describe("ProfileSettingsScreen", () => {
     (saveThemePreferenceForUser as jest.Mock).mockResolvedValue("forest");
     (pickProfileAvatarImage as jest.Mock).mockResolvedValue(null);
     (uploadProfileAvatar as jest.Mock).mockResolvedValue(
-      "https://project.supabase.co/storage/v1/object/public/avatars/user-1/avatar.jpg"
+      "https://project.supabase.co/storage/v1/object/public/avatars/user-1/avatar.jpg?updatedAt=1712345678901"
     );
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
@@ -197,7 +197,7 @@ describe("ProfileSettingsScreen", () => {
       fullName: "Ada Lovelace",
       preferredName: "Ada",
       avatarUrl:
-        "https://project.supabase.co/storage/v1/object/public/avatars/user-1/avatar.jpg",
+        "https://project.supabase.co/storage/v1/object/public/avatars/user-1/avatar.jpg?updatedAt=1712345678901",
       source: "remote",
     });
 
@@ -233,7 +233,7 @@ describe("ProfileSettingsScreen", () => {
         fullName: "Ada",
         phone: "+52 449 000 1111",
         avatarUrl:
-          "https://project.supabase.co/storage/v1/object/public/avatars/user-1/avatar.jpg",
+          "https://project.supabase.co/storage/v1/object/public/avatars/user-1/avatar.jpg?updatedAt=1712345678901",
         themeName: "forest",
       });
     });
