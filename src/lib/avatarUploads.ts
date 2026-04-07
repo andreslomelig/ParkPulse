@@ -8,6 +8,11 @@ export type PickedProfileImage = {
   fileExtension: string;
 };
 
+function withCacheBustingQueryParam(publicUrl: string): string {
+  const separator = publicUrl.includes("?") ? "&" : "?";
+  return `${publicUrl}${separator}updatedAt=${Date.now()}`;
+}
+
 function normalizeFileExtension(
   localUri: string,
   mimeType: string | null | undefined
@@ -110,5 +115,5 @@ export async function uploadProfileAvatar(
     throw new Error("No se pudo obtener la URL publica del avatar.");
   }
 
-  return publicUrl;
+  return withCacheBustingQueryParam(publicUrl);
 }
