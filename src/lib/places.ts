@@ -7,6 +7,7 @@ import {
   normalizeCostType,
   normalizeCurrencyCode,
   normalizeParkingStatus,
+  normalizeParkingTrustLevel,
   PARKING_WEEKDAY_LABELS,
   PARKING_WEEKDAYS,
   toInteger,
@@ -74,6 +75,10 @@ type RawPlace = {
   capacity_max?: number | string | null;
   capacity_confidence?: string | null;
   access_type?: string | null;
+  status_confidence?: string | null;
+  status_report_count?: number | string | null;
+  status_trust_score?: number | string | null;
+  recommended_refresh_seconds?: number | string | null;
 };
 
 const LIVE_PLACE_SELECT = [
@@ -101,6 +106,10 @@ const LIVE_PLACE_SELECT = [
   "total_report_count",
   "average_rating",
   "rating_count",
+  "status_confidence",
+  "status_report_count",
+  "status_trust_score",
+  "recommended_refresh_seconds",
 ].join(", ");
 
 const LEGACY_LIVE_PLACE_SELECT = [
@@ -133,6 +142,10 @@ const BASE_PLACE_SELECT = [
   "capacity_max",
   "capacity_confidence",
   "access_type",
+  "status_confidence",
+  "status_report_count",
+  "status_trust_score",
+  "recommended_refresh_seconds",
   "current_status",
   "updated_at",
 ].join(", ");
@@ -188,6 +201,10 @@ const fallbackPlaces: ParkingPlace[] = [
     capacityMax: null,
     capacityConfidence: "unknown",
     accessType: "mixed",
+    statusConfidence: "medium",
+    statusReportCount: 0,
+    statusTrustScore: null,
+    recommendedRefreshSeconds: 180,
     source: "fallback",
   },
   {
@@ -231,6 +248,10 @@ const fallbackPlaces: ParkingPlace[] = [
     capacityMax: null,
     capacityConfidence: "unknown",
     accessType: "public",
+    statusConfidence: "medium",
+    statusReportCount: 0,
+    statusTrustScore: null,
+    recommendedRefreshSeconds: 180,
     source: "fallback",
   },
   {
@@ -274,6 +295,10 @@ const fallbackPlaces: ParkingPlace[] = [
     capacityMax: null,
     capacityConfidence: "unknown",
     accessType: "mixed",
+    statusConfidence: "low",
+    statusReportCount: 0,
+    statusTrustScore: null,
+    recommendedRefreshSeconds: 300,
     source: "fallback",
   },
 ];
@@ -515,6 +540,10 @@ function mapRawPlace(place: RawPlace): ParkingPlace | null {
     capacityMax: toInteger(place.capacity_max),
     capacityConfidence: normalizeCapacityConfidence(place.capacity_confidence),
     accessType: normalizeAccessType(place.access_type),
+    statusConfidence: normalizeParkingTrustLevel(place.status_confidence),
+    statusReportCount: toInteger(place.status_report_count) ?? 0,
+    statusTrustScore: toNumber(place.status_trust_score),
+    recommendedRefreshSeconds: toInteger(place.recommended_refresh_seconds),
     source: "remote",
   };
 }

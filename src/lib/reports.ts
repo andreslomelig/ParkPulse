@@ -1,18 +1,21 @@
 import { getCommunitySessionId } from "./communitySession";
 import {
   clampLimit,
+  normalizeParkingReportReaction,
   normalizeParkingReportStatus,
   normalizeRatingValue,
   toInteger,
   toNumber,
   toTrimmedString,
   type ParkingReport,
+  type ParkingReportReaction,
   type ParkingReportStatus,
 } from "./parkingShared";
 import { getSupabaseClient, requireSupabaseClient } from "./supabase";
 
 export type {
   ParkingReport,
+  ParkingReportReaction,
   ParkingReportStatus,
   ParkingStatus,
 } from "./parkingShared";
@@ -29,6 +32,12 @@ export type SubmitParkingReportInput = {
   rating?: number | null;
 };
 
+export type ReactToParkingReportInput = {
+  reportId: string;
+  reaction: ParkingReportReaction;
+  actorSessionId?: string | null;
+};
+
 type RawParkingReport = {
   id?: string | number | null;
   place_id?: string | number | null;
@@ -41,6 +50,8 @@ type RawParkingReport = {
   reported_distance_meters?: number | string | null;
   reporter_user_id?: string | null;
   reporter_display_name?: string | null;
+  confirm_count?: number | string | null;
+  dispute_count?: number | string | null;
 };
 
 type ReportFeedScope =
@@ -61,6 +72,8 @@ const REPORT_SELECT = [
   "reported_distance_meters",
   "reporter_user_id",
   "reporter_display_name",
+  "confirm_count",
+  "dispute_count",
 ].join(", ");
 
 const LEGACY_REPORT_SELECT = [
@@ -87,6 +100,8 @@ const fallbackRecentReports: ParkingReport[] = [
     reportedDistanceMeters: 30,
     reporterUserId: null,
     reporterDisplayName: "Comunidad",
+    confirmCount: 1,
+    disputeCount: 0,
     source: "fallback",
   },
   {
@@ -100,6 +115,8 @@ const fallbackRecentReports: ParkingReport[] = [
     reportedDistanceMeters: 42,
     reporterUserId: null,
     reporterDisplayName: "Comunidad",
+    confirmCount: 0,
+    disputeCount: 1,
     source: "fallback",
   },
 ];
@@ -139,6 +156,28 @@ export function normalizeSubmitParkingReportInput(
     reportedLongitude: toNumber(input.reportedLongitude),
     reportedDistanceMeters: toInteger(input.reportedDistanceMeters),
     rating,
+  };
+}
+
+export function normalizeReactToParkingReportInput(
+  input: ReactToParkingReportInput
+) {
+  const reportId = toTrimmedString(input.reportId);
+  const reaction = normalizeParkingReportReaction(input.reaction);
+
+  if (!reportId) {
+    throw new Error("La reaccion necesita un reporte valido.");
+  }
+
+  if (!reaction) {
+    throw new Error("La reaccion del reporte es invalida.");
+  }
+
+  return {
+    reportId,
+    reaction,
+    actorSessionId:
+      toTrimmedString(input.actorSessionId) ?? getCommunitySessionId(),
   };
 }
 
@@ -203,6 +242,8 @@ function mapRawReport(report: RawParkingReport): ParkingReport | null {
     reportedDistanceMeters: toInteger(report.reported_distance_meters),
     reporterUserId: report.reporter_user_id ?? null,
     reporterDisplayName: toTrimmedString(report.reporter_display_name),
+    confirmCount: toInteger(report.confirm_count) ?? 0,
+    disputeCount: toInteger(report.dispute_count) ?? 0,
     source: "remote",
   };
 }
@@ -292,6 +333,32 @@ export async function submitParkingReport(
 
   if (!mappedReport) {
     throw new Error("No se pudo interpretar el reporte creado.");
+  }
+
+  return mappedReport;
+}
+
+export async function reactToParkingReport(
+  input: ReactToParkingReportInput
+): Promise<ParkingReport> {
+  const normalizedInput = normalizeReactToParkingReportInput(input);
+  const client = requireSupabaseClient();
+
+  const { data, error } = await client.rpc("react_to_place_report", {
+    input_report_id: normalizedInput.reportId,
+    input_reaction: normalizedInput.reaction,
+    input_actor_session_id: normalizedInput.actorSessionId,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const updatedReport = Array.isArray(data) ? data[0] : data;
+  const mappedReport = mapRawReport((updatedReport as RawParkingReport | null) ?? {});
+
+  if (!mappedReport) {
+    throw new Error("No se pudo interpretar la reaccion del reporte.");
   }
 
   return mappedReport;

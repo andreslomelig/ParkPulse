@@ -2,7 +2,9 @@ import {
   fetchRecentReports,
   fetchReportsForPlace,
   fetchReportsForUser,
+  normalizeReactToParkingReportInput,
   normalizeSubmitParkingReportInput,
+  reactToParkingReport,
   submitParkingReport,
 } from "./reports";
 import {
@@ -69,6 +71,31 @@ describe("reports", () => {
         rating: 9,
       })
     ).toThrow("La calificacion del reporte debe estar entre 1 y 5.");
+
+    expect(
+      normalizeReactToParkingReportInput({
+        reportId: " report-1 ",
+        reaction: "confirm",
+      })
+    ).toEqual({
+      reportId: "report-1",
+      reaction: "confirm",
+      actorSessionId: "session-123",
+    });
+
+    expect(() =>
+      normalizeReactToParkingReportInput({
+        reportId: "",
+        reaction: "confirm",
+      })
+    ).toThrow("La reaccion necesita un reporte valido.");
+
+    expect(() =>
+      normalizeReactToParkingReportInput({
+        reportId: "report-1",
+        reaction: "bad" as never,
+      })
+    ).toThrow("La reaccion del reporte es invalida.");
   });
 
   it("returns fallback recent reports without supabase", async () => {
@@ -95,6 +122,8 @@ describe("reports", () => {
                   status: "full",
                   note: "sin espacio",
                   created_at: "2026-03-19T18:00:00.000Z",
+                  confirm_count: 2,
+                  dispute_count: 1,
                 },
               ],
               error: null,
@@ -122,6 +151,8 @@ describe("reports", () => {
         id: "report-1",
         status: "full",
         note: "sin espacio",
+        confirmCount: 2,
+        disputeCount: 1,
       }),
     ]);
 
@@ -650,5 +681,39 @@ describe("reports", () => {
         status: "available",
       })
     ).rejects.toThrow("No se pudo interpretar el reporte creado.");
+  });
+
+  it("reacts to reports through the rpc endpoint", async () => {
+    const client = {
+      rpc: jest.fn().mockResolvedValue({
+        data: [
+          {
+            id: "report-1",
+            place_id: "place-1",
+            place_name: "Lugar",
+            status: "available",
+            created_at: "2026-03-19T18:05:00.000Z",
+            confirm_count: 3,
+            dispute_count: 1,
+          },
+        ],
+        error: null,
+      }),
+    };
+
+    (requireSupabaseClient as jest.Mock).mockReturnValue(client);
+
+    await expect(
+      reactToParkingReport({
+        reportId: "report-1",
+        reaction: "confirm",
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: "report-1",
+        confirmCount: 3,
+        disputeCount: 1,
+      })
+    );
   });
 });

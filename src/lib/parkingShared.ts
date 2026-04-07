@@ -5,6 +5,8 @@ export type ParkingReportStatus = Exclude<ParkingStatus, "unknown">;
 export type ParkingCostType = "free" | "paid" | "mixed" | "unknown";
 export type CapacityConfidence = "exact" | "estimated" | "range" | "unknown";
 export type AccessType = "public" | "private" | "mixed" | "unknown";
+export type ParkingTrustLevel = "low" | "medium" | "high";
+export type ParkingReportReaction = "confirm" | "dispute";
 export const PARKING_WEEKDAYS = [
   "monday",
   "tuesday",
@@ -58,6 +60,10 @@ export type ParkingPlace = {
   capacityMax: number | null;
   capacityConfidence: CapacityConfidence;
   accessType: AccessType;
+  statusConfidence?: ParkingTrustLevel | null;
+  statusReportCount?: number;
+  statusTrustScore?: number | null;
+  recommendedRefreshSeconds?: number | null;
   source: DataSource;
 };
 
@@ -72,6 +78,8 @@ export type ParkingReport = {
   reportedDistanceMeters: number | null;
   reporterUserId: string | null;
   reporterDisplayName: string | null;
+  confirmCount?: number;
+  disputeCount?: number;
   source: DataSource;
 };
 
@@ -167,6 +175,28 @@ export function normalizeAccessType(
   if (value === "private" || value === "privado") return "private";
   if (value === "mixed" || value === "mixto") return "mixed";
   return "unknown";
+}
+
+export function normalizeParkingTrustLevel(
+  raw: string | null | undefined
+): ParkingTrustLevel | null {
+  const value = raw?.trim().toLowerCase();
+  if (value === "low" || value === "medium" || value === "high") {
+    return value;
+  }
+
+  return null;
+}
+
+export function normalizeParkingReportReaction(
+  raw: string | null | undefined
+): ParkingReportReaction | null {
+  const value = raw?.trim().toLowerCase();
+  if (value === "confirm" || value === "dispute") {
+    return value;
+  }
+
+  return null;
 }
 
 export function normalizeCurrencyCode(

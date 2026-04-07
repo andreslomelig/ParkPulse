@@ -34,6 +34,7 @@ import {
 import {
   fetchRecentReports,
   fetchReportsForPlace,
+  reactToParkingReport,
   submitParkingReport,
   type ParkingReport,
 } from "../lib/reports";
@@ -200,6 +201,41 @@ function getStatusSupportLabel(status: ParkingStatus) {
   }
 }
 
+function getStatusConfidenceLabel(place: ParkingPlace) {
+  switch (place.statusConfidence) {
+    case "high":
+      return "Alta confianza comunitaria";
+    case "medium":
+      return "Confianza media";
+    case "low":
+      return "Confianza baja";
+    default:
+      return place.activeReportCount > 0 ? "Validacion en curso" : "Sin validar";
+  }
+}
+
+function getRefreshWindowLabel(place: ParkingPlace) {
+  const seconds = place.recommendedRefreshSeconds;
+  if (!seconds || seconds <= 0) {
+    return "Manual";
+  }
+
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.round(seconds / 60);
+  return mins === 1 ? "1 min" : `${mins} min`;
+}
+
+function getReportReactionLabel(report: ParkingReport) {
+  const confirms = report.confirmCount ?? 0;
+  const disputes = report.disputeCount ?? 0;
+
+  if (confirms === 0 && disputes === 0) {
+    return "Aun sin reacciones comunitarias";
+  }
+
+  return `${confirms} confirma · ${disputes} disputa`;
+}
+
 function getAccessTypeLabel(accessType: ParkingPlace["accessType"]) {
   switch (accessType) {
     case "public":
@@ -355,6 +391,9 @@ export default function MapScreen({
   const ignoreNextMapPressRef = useRef(false);
   const lastHandledFocusRequestIdRef = useRef<number | null>(null);
   const lastHandledPlaceRefreshRequestIdRef = useRef<number | null>(null);
+  const refreshMapDataRef = useRef<(options?: { silent?: boolean }) => Promise<void>>(
+    async () => {}
+  );
 
   const [permission, setPermission] = useState<PermissionState>("unknown");
   const [region, setRegion] = useState<Region | null>(null);
@@ -379,6 +418,7 @@ export default function MapScreen({
   const [isTogglingSavedPlace, setIsTogglingSavedPlace] = useState(false);
   const [recentReports, setRecentReports] = useState<ParkingReport[]>([]);
   const [selectedPlaceReports, setSelectedPlaceReports] = useState<ParkingReport[]>([]);
+  const [reactingReportId, setReactingReportId] = useState<string | null>(null);
   const [selectedPlaceReviews, setSelectedPlaceReviews] = useState<ParkingPlaceReview[]>([]);
   const [isLoadingPlaceHistory, setIsLoadingPlaceHistory] = useState(false);
   const [isLoadingPlaceReviews, setIsLoadingPlaceReviews] = useState(false);
@@ -571,6 +611,10 @@ export default function MapScreen({
         capacityMax: null,
         capacityConfidence: "unknown" as const,
         accessType: "public" as const,
+        statusConfidence: "low" as const,
+        statusReportCount: 0,
+        statusTrustScore: null,
+        recommendedRefreshSeconds: 300,
         source: "fallback" as const,
       },
     ];
@@ -595,6 +639,7 @@ export default function MapScreen({
   }, [mapReadyPlaces, searchQuery]);
 
   const isSelectedPlaceSaved = selectedPlace ? savedPlaceIds.includes(selectedPlace.id) : false;
+  const adaptiveRefreshSeconds = selectedPlace?.recommendedRefreshSeconds ?? 180;
 
   useEffect(() => {
     if (!selectedPlaceId) return;
@@ -604,6 +649,29 @@ export default function MapScreen({
       setPlaceSheetIndex(0);
     });
   }, [selectedPlaceId]);
+
+  useEffect(() => {
+    if (isAddMode || reportingPlaceId || isSearchOpen || isMenuOpen) {
+      return;
+    }
+
+    const refreshDelayMs = Math.max(adaptiveRefreshSeconds, 45) * 1000;
+    const timer = setTimeout(() => {
+      void refreshMapDataRef.current({ silent: true });
+    }, refreshDelayMs);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [
+    adaptiveRefreshSeconds,
+    isAddMode,
+    isMenuOpen,
+    isSearchOpen,
+    reportingPlaceId,
+    selectedPlaceId,
+    placeDetailsRefreshKey,
+  ]);
 
   const onCenterPress = async () => {
     try {
@@ -618,8 +686,11 @@ export default function MapScreen({
     }
   };
 
-  const onRefreshPress = async () => {
-    setIsLoadingPlaces(true);
+  const refreshMapData = async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) {
+      setIsLoadingPlaces(true);
+    }
 
     try {
       const { nextPlaces, nextReports } = await fetchMapOverviewData();
@@ -639,11 +710,21 @@ export default function MapScreen({
       setPlaceDetailsRefreshKey((value) => value + 1);
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "No se pudo actualizar el mapa.");
+      if (!silent) {
+        Alert.alert("Error", "No se pudo actualizar el mapa.");
+      }
     } finally {
-      setIsLoadingPlaces(false);
+      if (!silent) {
+        setIsLoadingPlaces(false);
+      }
     }
   };
+
+  const onRefreshPress = async () => {
+    await refreshMapData();
+  };
+
+  refreshMapDataRef.current = refreshMapData;
 
   const openSearch = () => {
     setIsSearchOpen(true);
@@ -1090,7 +1171,56 @@ export default function MapScreen({
       Alert.alert("Reporte enviado", `${reportingPlace.name} ahora aparece como ${statusToLabel(status)}.`);
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "No se pudo enviar el reporte.");
+      Alert.alert(
+        "Error",
+        e instanceof Error ? e.message : "No se pudo enviar el reporte."
+      );
+    }
+  };
+
+  const handleReactToReport = async (
+    report: ParkingReport,
+    reaction: "confirm" | "dispute"
+  ) => {
+    if (!selectedPlace) return;
+
+    try {
+      setReactingReportId(report.id);
+
+      const updatedReport = await reactToParkingReport({
+        reportId: report.id,
+        reaction,
+      });
+      const [latestPlace, nextPlaceHistory] = await Promise.all([
+        fetchPlaceById(selectedPlace.id),
+        fetchReportsForPlace(selectedPlace.id, PLACE_HISTORY_LIMIT),
+      ]);
+
+      setSelectedPlaceReports((previousReports) => {
+        if (nextPlaceHistory.length > 0) {
+          return nextPlaceHistory;
+        }
+
+        return previousReports.map((currentReport) =>
+          currentReport.id === updatedReport.id ? updatedReport : currentReport
+        );
+      });
+
+      if (latestPlace) {
+        setPlaces((previousPlaces) =>
+          previousPlaces.map((place) =>
+            place.id === latestPlace.id ? latestPlace : place
+          )
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        "Error",
+        error instanceof Error ? error.message : "No se pudo registrar la reaccion."
+      );
+    } finally {
+      setReactingReportId(null);
     }
   };
 
@@ -1590,7 +1720,9 @@ export default function MapScreen({
                 <Text style={styles.placeHeroBadgeText}>{statusToLabel(selectedPlace.status)}</Text>
               </View>
               <Text style={styles.placeHeroTitle}>{getStatusSupportLabel(selectedPlace.status)}</Text>
-              <Text style={styles.placeHeroMeta}>{getUpdatedLabel(selectedPlace)}</Text>
+              <Text style={styles.placeHeroMeta}>
+                {getUpdatedLabel(selectedPlace)} . {getStatusConfidenceLabel(selectedPlace)}
+              </Text>
             </View>
 
             <View style={styles.primaryActionsRow}>
@@ -1644,6 +1776,20 @@ export default function MapScreen({
               <View style={styles.detailTile}>
                 <Text style={styles.detailLabel}>Acceso</Text>
                 <Text style={styles.detailValue}>{getAccessTypeLabel(selectedPlace.accessType)}</Text>
+              </View>
+              <View style={styles.detailTile}>
+                <Text style={styles.detailLabel}>Confianza</Text>
+                <Text style={styles.detailValue}>{getStatusConfidenceLabel(selectedPlace)}</Text>
+                <Text style={styles.detailHint}>
+                  {selectedPlace.statusReportCount && selectedPlace.statusReportCount > 0
+                    ? `${selectedPlace.statusReportCount} validaciones activas`
+                    : "Esperando validaciones cercanas"}
+                </Text>
+              </View>
+              <View style={styles.detailTile}>
+                <Text style={styles.detailLabel}>Refresh sugerido</Text>
+                <Text style={styles.detailValue}>{getRefreshWindowLabel(selectedPlace)}</Text>
+                <Text style={styles.detailHint}>Ajustado segun frescura y consenso</Text>
               </View>
             </View>
 
@@ -1719,6 +1865,37 @@ export default function MapScreen({
                         {getElapsedLabel(report.createdAt) ?? "Reciente"}
                         {report.note ? ` . ${report.note}` : ""}
                       </Text>
+                      <Text style={styles.historyReactionSummary}>
+                        {getReportReactionLabel(report)}
+                      </Text>
+                      <View style={styles.historyReactionRow}>
+                        <Pressable
+                          testID={`confirm-report-${report.id}`}
+                          style={[
+                            styles.historyReactionButton,
+                            styles.historyReactionConfirm,
+                            reactingReportId === report.id && styles.actionDisabled,
+                          ]}
+                          onPress={() => handleReactToReport(report, "confirm")}
+                          disabled={reactingReportId === report.id}
+                        >
+                          <Text style={styles.historyReactionConfirmText}>
+                            {reactingReportId === report.id ? "Guardando..." : "Sigue igual"}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          testID={`dispute-report-${report.id}`}
+                          style={[
+                            styles.historyReactionButton,
+                            styles.historyReactionDispute,
+                            reactingReportId === report.id && styles.actionDisabled,
+                          ]}
+                          onPress={() => handleReactToReport(report, "dispute")}
+                          disabled={reactingReportId === report.id}
+                        >
+                          <Text style={styles.historyReactionDisputeText}>Ya no coincide</Text>
+                        </Pressable>
+                      </View>
                     </View>
                   </View>
                 ))
@@ -2396,6 +2573,40 @@ const styles = StyleSheet.create({
   historyCopy: { flex: 1 },
   historyTitle: { fontSize: 14, color: "#0f172a", fontWeight: "800" },
   historySubtitle: { marginTop: 3, fontSize: 12, color: "#64748b", fontWeight: "500" },
+  historyReactionSummary: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#0f766e",
+    fontWeight: "700",
+  },
+  historyReactionRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    gap: 8,
+  },
+  historyReactionButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  historyReactionConfirm: {
+    backgroundColor: "#dcfce7",
+  },
+  historyReactionDispute: {
+    backgroundColor: "#fee2e2",
+  },
+  historyReactionConfirmText: {
+    color: "#166534",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  historyReactionDisputeText: {
+    color: "#b91c1c",
+    fontSize: 12,
+    fontWeight: "800",
+  },
   infoSection: {
     marginTop: 18,
     backgroundColor: "#ffffff",

@@ -19,6 +19,60 @@ begin
 end;
 $$;
 
+create or replace function public.normalize_search_text(input text)
+returns text
+language sql
+immutable
+as $$
+  select regexp_replace(lower(coalesce(trim(input), '')), '\s+', ' ', 'g');
+$$;
+
+create or replace function public.geo_distance_meters(
+  latitude_a double precision,
+  longitude_a double precision,
+  latitude_b double precision,
+  longitude_b double precision
+)
+returns double precision
+language sql
+immutable
+as $$
+  select
+    2 * 6371000 * asin(
+      sqrt(
+        power(sin(radians((latitude_b - latitude_a) / 2)), 2)
+        + cos(radians(latitude_a))
+        * cos(radians(latitude_b))
+        * power(sin(radians((longitude_b - longitude_a) / 2)), 2)
+      )
+    );
+$$;
+
+create or replace function public.report_actor_matches(
+  left_user_id uuid,
+  left_session_id text,
+  right_user_id uuid,
+  right_session_id text
+)
+returns boolean
+language sql
+immutable
+as $$
+  select
+    (
+      left_user_id is not null
+      and right_user_id is not null
+      and left_user_id = right_user_id
+    )
+    or (
+      left_user_id is null
+      and right_user_id is null
+      and nullif(trim(left_session_id), '') is not null
+      and nullif(trim(right_session_id), '') is not null
+      and nullif(trim(left_session_id), '') = nullif(trim(right_session_id), '')
+    );
+$$;
+
 create or replace function public.is_valid_hour_text(input text)
 returns boolean
 language sql
@@ -559,6 +613,10 @@ create table if not exists public.place_reports (
   reported_longitude double precision null,
   reported_distance_meters integer null
     check (reported_distance_meters is null or reported_distance_meters >= 0),
+  actor_trust_score numeric(6, 2) not null default 1.00
+    check (actor_trust_score >= 0),
+  actor_trust_level text not null default 'low'
+    check (actor_trust_level in ('low', 'medium', 'high')),
   metadata jsonb not null default '{}'::jsonb,
   expires_at timestamptz null,
   created_at timestamptz not null default now(),
@@ -568,6 +626,26 @@ create table if not exists public.place_reports (
       or nullif(trim(reporter_session_id), '') is not null
     )
 );
+
+alter table public.place_reports
+  add column if not exists actor_trust_score numeric(6, 2) not null default 1.00;
+
+alter table public.place_reports
+  add column if not exists actor_trust_level text not null default 'low';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'place_reports_actor_trust_level_check'
+      and conrelid = 'public.place_reports'::regclass
+  ) then
+    alter table public.place_reports
+      add constraint place_reports_actor_trust_level_check
+      check (actor_trust_level in ('low', 'medium', 'high'));
+  end if;
+end $$;
 
 create index if not exists place_reports_place_created_idx
   on public.place_reports (place_id, created_at desc);
@@ -580,6 +658,9 @@ create index if not exists place_reports_reporter_session_idx
 
 create index if not exists place_reports_active_idx
   on public.place_reports (place_id, expires_at desc, created_at desc);
+
+create index if not exists place_reports_place_actor_created_idx
+  on public.place_reports (place_id, reporter_user_id, reporter_session_id, created_at desc);
 
 create or replace function public.place_report_ttl_minutes(input_status text)
 returns integer
@@ -594,6 +675,153 @@ as $$
   end;
 $$;
 
+create or replace function public.classify_actor_trust_level(input_score numeric)
+returns text
+language sql
+immutable
+as $$
+  select case
+    when coalesce(input_score, 0) >= 2.25 then 'high'
+    when coalesce(input_score, 0) >= 1.35 then 'medium'
+    else 'low'
+  end;
+$$;
+
+create table if not exists public.place_report_feedback (
+  id uuid primary key default gen_random_uuid(),
+  report_id uuid not null references public.place_reports(id) on delete cascade,
+  reactor_user_id uuid null references auth.users(id) on delete set null,
+  reactor_session_id text null,
+  reactor_identity text generated always as (
+    coalesce(reactor_user_id::text, nullif(trim(reactor_session_id), ''))
+  ) stored,
+  reaction text not null
+    check (reaction in ('confirm', 'dispute')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint place_report_feedback_actor_check
+    check (
+      reactor_user_id is not null
+      or nullif(trim(reactor_session_id), '') is not null
+    )
+);
+
+create or replace function public.compute_actor_report_trust(
+  actor_user_id uuid,
+  actor_session_id text
+)
+returns numeric
+language sql
+stable
+set search_path = public
+as $$
+  with actor_reports as (
+    select report.*
+    from public.place_reports as report
+    where public.report_actor_matches(
+      report.reporter_user_id,
+      report.reporter_session_id,
+      actor_user_id,
+      actor_session_id
+    )
+  ),
+  actor_report_stats as (
+    select
+      count(*)::numeric as total_reports,
+      count(*) filter (
+        where exists (
+          select 1
+          from public.place_reports as confirmation
+          where confirmation.place_id = report.place_id
+            and confirmation.created_at > report.created_at
+            and confirmation.created_at <= least(
+              coalesce(report.expires_at, report.created_at + interval '2 hours'),
+              report.created_at + interval '2 hours'
+            )
+            and confirmation.report_status = report.report_status
+            and not public.report_actor_matches(
+              confirmation.reporter_user_id,
+              confirmation.reporter_session_id,
+              report.reporter_user_id,
+              report.reporter_session_id
+            )
+        )
+      )::numeric as confirmed_reports,
+      count(*) filter (
+        where exists (
+          select 1
+          from public.place_reports as contradiction
+          where contradiction.place_id = report.place_id
+            and contradiction.created_at > report.created_at
+            and contradiction.created_at <= report.created_at + interval '90 minutes'
+            and contradiction.report_status <> report.report_status
+            and not public.report_actor_matches(
+              contradiction.reporter_user_id,
+              contradiction.reporter_session_id,
+              report.reporter_user_id,
+              report.reporter_session_id
+            )
+        )
+      )::numeric as contradicted_reports
+    from actor_reports as report
+  ),
+  actor_feedback_stats as (
+    select
+      count(*) filter (where feedback.reaction = 'confirm')::numeric as direct_confirms,
+      count(*) filter (where feedback.reaction = 'dispute')::numeric as direct_disputes
+    from public.place_report_feedback as feedback
+    join public.place_reports as report
+      on report.id = feedback.report_id
+    where public.report_actor_matches(
+      report.reporter_user_id,
+      report.reporter_session_id,
+      actor_user_id,
+      actor_session_id
+    )
+  ),
+  actor_rating_stats as (
+    select count(*)::numeric as total_ratings
+    from public.place_ratings as rating
+    where (
+      actor_user_id is not null
+      and rating.rater_user_id = actor_user_id
+    ) or (
+      actor_user_id is null
+      and actor_session_id is not null
+      and rating.rater_user_id is null
+      and rating.rater_session_id = actor_session_id
+    )
+  ),
+  actor_place_stats as (
+    select count(*)::numeric as total_places
+    from public.places as place
+    where (
+      actor_user_id is not null
+      and place.created_by_user_id = actor_user_id
+    ) or (
+      actor_user_id is null
+      and actor_session_id is not null
+      and place.created_by_user_id is null
+      and place.created_by_session_id = actor_session_id
+    )
+  )
+  select round(least(greatest(
+    (case when actor_user_id is not null then 1.10 else 0.80 end)
+    + least(coalesce(report_stats.total_reports, 0) * 0.03, 0.75)
+    + least(coalesce(rating_stats.total_ratings, 0) * 0.02, 0.20)
+    + least(coalesce(place_stats.total_places, 0) * 0.05, 0.25)
+    + least(coalesce(report_stats.confirmed_reports, 0) * 0.05, 0.60)
+    + least(coalesce(feedback_stats.direct_confirms, 0) * 0.04, 0.40)
+    - least(coalesce(report_stats.contradicted_reports, 0) * 0.08, 0.80)
+    - least(coalesce(feedback_stats.direct_disputes, 0) * 0.06, 0.45),
+    0.35
+  ), 3.20)::numeric, 2)
+  from actor_report_stats as report_stats
+  cross join actor_feedback_stats as feedback_stats
+  cross join actor_rating_stats as rating_stats
+  cross join actor_place_stats as place_stats;
+$$;
+
 create or replace function public.place_reports_fill_defaults()
 returns trigger
 language plpgsql
@@ -603,6 +831,7 @@ begin
   new.note := nullif(trim(new.note), '');
   new.report_status := lower(new.report_status);
   new.reporter_session_id := nullif(trim(new.reporter_session_id), '');
+  new.actor_trust_level := public.classify_actor_trust_level(new.actor_trust_score);
 
   if new.expires_at is null then
     new.expires_at := new.created_at
@@ -640,6 +869,79 @@ begin
 end $$;
 
 grant select on public.place_reports to anon, authenticated;
+
+create table if not exists public.place_report_feedback (
+  id uuid primary key default gen_random_uuid(),
+  report_id uuid not null references public.place_reports(id) on delete cascade,
+  reactor_user_id uuid null references auth.users(id) on delete set null,
+  reactor_session_id text null,
+  reactor_identity text generated always as (
+    coalesce(reactor_user_id::text, nullif(trim(reactor_session_id), ''))
+  ) stored,
+  reaction text not null
+    check (reaction in ('confirm', 'dispute')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint place_report_feedback_actor_check
+    check (
+      reactor_user_id is not null
+      or nullif(trim(reactor_session_id), '') is not null
+    )
+);
+
+create unique index if not exists place_report_feedback_report_identity_idx
+  on public.place_report_feedback (report_id, reactor_identity);
+
+create index if not exists place_report_feedback_report_updated_idx
+  on public.place_report_feedback (report_id, updated_at desc);
+
+create or replace function public.place_report_feedback_fill_defaults()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.reactor_session_id := nullif(trim(new.reactor_session_id), '');
+  new.reaction := lower(new.reaction);
+  new.created_at := coalesce(new.created_at, now());
+  new.updated_at := coalesce(new.updated_at, new.created_at);
+  return new;
+end;
+$$;
+
+drop trigger if exists place_report_feedback_fill_defaults_trigger on public.place_report_feedback;
+
+create trigger place_report_feedback_fill_defaults_trigger
+  before insert or update on public.place_report_feedback
+  for each row
+  execute function public.place_report_feedback_fill_defaults();
+
+drop trigger if exists place_report_feedback_set_updated_at_trigger on public.place_report_feedback;
+
+create trigger place_report_feedback_set_updated_at_trigger
+  before update on public.place_report_feedback
+  for each row
+  execute function public.set_updated_at();
+
+alter table public.place_report_feedback enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'place_report_feedback'
+      and policyname = 'place_report_feedback_select_public'
+  ) then
+    create policy place_report_feedback_select_public
+      on public.place_report_feedback
+      for select
+      to anon, authenticated
+      using (true);
+  end if;
+end $$;
+
+grant select on public.place_report_feedback to anon, authenticated;
 
 create table if not exists public.place_ratings (
   id uuid primary key default gen_random_uuid(),
@@ -725,16 +1027,71 @@ group by rating.place_id;
 grant select on public.place_rating_summary to anon, authenticated;
 
 create view public.place_live_status as
-with latest_active_report as (
-  select distinct on (report.place_id)
+with active_reports as (
+  select
     report.place_id,
-    report.id as active_report_id,
+    report.id,
     report.report_status,
     report.created_at,
-    report.expires_at
+    report.expires_at,
+    report.actor_trust_score
   from public.place_reports as report
   where report.expires_at > now()
-  order by report.place_id, report.created_at desc
+),
+status_scores as (
+  select
+    report.place_id,
+    report.report_status,
+    count(*)::integer as report_count,
+    round(sum(report.actor_trust_score)::numeric, 2) as trust_score,
+    max(report.created_at) as latest_report_at
+  from active_reports as report
+  group by report.place_id, report.report_status
+),
+ranked_status_scores as (
+  select
+    score.*,
+    row_number() over (
+      partition by score.place_id
+      order by
+        score.trust_score desc,
+        score.report_count desc,
+        score.latest_report_at desc
+    ) as status_rank,
+    lead(score.trust_score) over (
+      partition by score.place_id
+      order by
+        score.trust_score desc,
+        score.report_count desc,
+        score.latest_report_at desc
+    ) as runner_up_trust_score
+  from status_scores as score
+),
+consensus_status as (
+  select
+    ranked.place_id,
+    ranked.report_status,
+    ranked.report_count,
+    ranked.trust_score,
+    ranked.latest_report_at,
+    case
+      when ranked.trust_score >= 3.00 or ranked.report_count >= 3 then 'high'
+      when ranked.trust_score >= 1.75 or ranked.report_count >= 2 then 'medium'
+      else 'low'
+    end as status_confidence,
+    case
+      when ranked.trust_score >= 3.00 or ranked.report_count >= 3 then 240
+      when ranked.trust_score >= 1.75 or ranked.report_count >= 2 then 120
+      else 60
+    end as recommended_refresh_seconds
+  from ranked_status_scores as ranked
+  where ranked.status_rank = 1
+    and ranked.trust_score >= 1.00
+    and (
+      ranked.runner_up_trust_score is null
+      or ranked.trust_score - ranked.runner_up_trust_score >= 0.35
+      or ranked.report_count >= 2
+    )
 ),
 report_stats as (
   select
@@ -763,20 +1120,30 @@ select
   place.capacity_max,
   place.capacity_confidence,
   place.access_type,
-  coalesce(active_report.report_status, place.current_status) as current_status,
-  coalesce(active_report.created_at, place.updated_at) as updated_at,
+  case
+    when stats.active_report_count > 0 and consensus.place_id is null then 'unknown'
+    else coalesce(consensus.report_status, place.current_status)
+  end as current_status,
+  coalesce(consensus.latest_report_at, place.updated_at) as updated_at,
   stats.last_reported_at,
   coalesce(stats.active_report_count, 0) as active_report_count,
   coalesce(stats.total_report_count, 0) as total_report_count,
   rating.average_rating,
   coalesce(rating.rating_count, 0) as rating_count,
+  consensus.status_confidence,
+  coalesce(consensus.report_count, 0) as status_report_count,
+  consensus.trust_score as status_trust_score,
+  case
+    when stats.active_report_count = 0 then 300
+    else consensus.recommended_refresh_seconds
+  end as recommended_refresh_seconds,
   place.created_at,
   place.created_by_user_id,
   place.created_by_session_id,
-  active_report.active_report_id
+  null::uuid as active_report_id
 from public.places as place
-left join latest_active_report as active_report
-  on active_report.place_id = place.id
+left join consensus_status as consensus
+  on consensus.place_id = place.id
 left join report_stats as stats
   on stats.place_id = place.id
 left join public.place_rating_summary as rating
@@ -785,6 +1152,14 @@ left join public.place_rating_summary as rating
 grant select on public.place_live_status to anon, authenticated;
 
 create view public.place_report_feed as
+with feedback_stats as (
+  select
+    feedback.report_id,
+    count(*) filter (where feedback.reaction = 'confirm')::integer as confirm_count,
+    count(*) filter (where feedback.reaction = 'dispute')::integer as dispute_count
+  from public.place_report_feedback as feedback
+  group by feedback.report_id
+)
 select
   report.id,
   report.place_id,
@@ -802,12 +1177,16 @@ select
     'Comunidad'
   ) as reporter_display_name,
   report.expires_at,
-  report.created_at
+  report.created_at,
+  coalesce(feedback.confirm_count, 0) as confirm_count,
+  coalesce(feedback.dispute_count, 0) as dispute_count
 from public.place_reports as report
 join public.places as place
   on place.id = report.place_id
 left join public.user_profiles as profile
-  on profile.user_id = report.reporter_user_id;
+  on profile.user_id = report.reporter_user_id
+left join feedback_stats as feedback
+  on feedback.report_id = report.id;
 
 grant select on public.place_report_feed to anon, authenticated;
 
@@ -953,12 +1332,53 @@ declare
   actor_user_id uuid;
   actor_session_id text;
   created_place_id uuid;
+  recent_place_count integer;
 begin
   actor_user_id := auth.uid();
   actor_session_id := nullif(trim(input_created_by_session_id), '');
 
   if actor_user_id is null and actor_session_id is null then
     raise exception 'place_creator_required';
+  end if;
+
+  select count(*)::integer
+  into recent_place_count
+  from public.places as place
+  where place.created_at >= now() - interval '24 hours'
+    and (
+      (actor_user_id is not null and place.created_by_user_id = actor_user_id)
+      or (
+        actor_user_id is null
+        and actor_session_id is not null
+        and place.created_by_user_id is null
+        and place.created_by_session_id = actor_session_id
+      )
+    );
+
+  if recent_place_count >= 4 then
+    raise exception 'place_creation_rate_limited';
+  end if;
+
+  if exists (
+    select 1
+    from public.places as existing_place
+    where public.geo_distance_meters(
+      existing_place.latitude,
+      existing_place.longitude,
+      input_latitude,
+      input_longitude
+    ) <= 45
+      or (
+        public.normalize_search_text(existing_place.name) = public.normalize_search_text(input_name)
+        and public.geo_distance_meters(
+          existing_place.latitude,
+          existing_place.longitude,
+          input_latitude,
+          input_longitude
+        ) <= 120
+      )
+  ) then
+    raise exception 'place_likely_duplicate';
   end if;
 
   insert into public.places (
@@ -1033,12 +1453,20 @@ declare
   actor_user_id uuid;
   actor_session_id text;
   created_report_id uuid;
+  actor_trust_score numeric;
+  actor_trust_level text;
+  max_reports_per_window integer;
 begin
   actor_user_id := auth.uid();
   actor_session_id := nullif(trim(input_reporter_session_id), '');
 
   if actor_user_id is null and actor_session_id is null then
     raise exception 'reporter_required';
+  end if;
+
+  if input_report_status is null
+    or lower(input_report_status) not in ('available', 'full', 'closed') then
+    raise exception 'invalid_report_status';
   end if;
 
   if not exists (
@@ -1049,6 +1477,49 @@ begin
     raise exception 'place_not_found';
   end if;
 
+  if input_reported_distance_meters is not null
+    and input_reported_distance_meters > 250 then
+    raise exception 'report_too_far';
+  end if;
+
+  actor_trust_score := public.compute_actor_report_trust(actor_user_id, actor_session_id);
+  actor_trust_level := public.classify_actor_trust_level(actor_trust_score);
+
+  max_reports_per_window := case actor_trust_level
+    when 'high' then 10
+    when 'medium' then 7
+    else 5
+  end;
+
+  if exists (
+    select 1
+    from public.place_reports as recent_place_report
+    where recent_place_report.place_id = input_place_id
+      and recent_place_report.created_at >= now() - interval '3 minutes'
+      and public.report_actor_matches(
+        recent_place_report.reporter_user_id,
+        recent_place_report.reporter_session_id,
+        actor_user_id,
+        actor_session_id
+      )
+  ) then
+    raise exception 'report_place_cooldown_active';
+  end if;
+
+  if (
+    select count(*)::integer
+    from public.place_reports as recent_report
+    where recent_report.created_at >= now() - interval '10 minutes'
+      and public.report_actor_matches(
+        recent_report.reporter_user_id,
+        recent_report.reporter_session_id,
+        actor_user_id,
+        actor_session_id
+      )
+  ) >= max_reports_per_window then
+    raise exception 'report_rate_limited';
+  end if;
+
   insert into public.place_reports (
     place_id,
     reporter_user_id,
@@ -1057,7 +1528,10 @@ begin
     note,
     reported_latitude,
     reported_longitude,
-    reported_distance_meters
+    reported_distance_meters,
+    actor_trust_score,
+    actor_trust_level,
+    metadata
   )
   values (
     input_place_id,
@@ -1067,7 +1541,14 @@ begin
     input_note,
     input_reported_latitude,
     input_reported_longitude,
-    input_reported_distance_meters
+    input_reported_distance_meters,
+    actor_trust_score,
+    actor_trust_level,
+    jsonb_build_object(
+      'trust_score', actor_trust_score,
+      'trust_level', actor_trust_level,
+      'source', case when actor_user_id is not null then 'authenticated' else 'session' end
+    )
   )
   returning id into created_report_id;
 
@@ -1089,6 +1570,82 @@ end;
 $$;
 
 grant execute on function public.create_place_report(uuid, text, text, double precision, double precision, integer, text, integer) to anon, authenticated;
+
+create or replace function public.react_to_place_report(
+  input_report_id uuid,
+  input_reaction text,
+  input_actor_session_id text default null
+)
+returns setof public.place_report_feed
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_user_id uuid;
+  actor_session_id text;
+  report_owner_user_id uuid;
+  report_owner_session_id text;
+begin
+  actor_user_id := auth.uid();
+  actor_session_id := nullif(trim(input_actor_session_id), '');
+
+  if actor_user_id is null and actor_session_id is null then
+    raise exception 'reaction_actor_required';
+  end if;
+
+  if input_reaction is null
+    or lower(input_reaction) not in ('confirm', 'dispute') then
+    raise exception 'invalid_report_reaction';
+  end if;
+
+  select
+    report.reporter_user_id,
+    report.reporter_session_id
+  into
+    report_owner_user_id,
+    report_owner_session_id
+  from public.place_reports as report
+  where report.id = input_report_id;
+
+  if report_owner_user_id is null and report_owner_session_id is null then
+    raise exception 'report_not_found';
+  end if;
+
+  if public.report_actor_matches(
+    report_owner_user_id,
+    report_owner_session_id,
+    actor_user_id,
+    actor_session_id
+  ) then
+    raise exception 'report_self_reaction_not_allowed';
+  end if;
+
+  insert into public.place_report_feedback (
+    report_id,
+    reactor_user_id,
+    reactor_session_id,
+    reaction
+  )
+  values (
+    input_report_id,
+    actor_user_id,
+    actor_session_id,
+    lower(input_reaction)
+  )
+  on conflict (report_id, reactor_identity) do update
+  set
+    reaction = excluded.reaction,
+    updated_at = now();
+
+  return query
+  select *
+  from public.place_report_feed
+  where id = input_report_id;
+end;
+$$;
+
+grant execute on function public.react_to_place_report(uuid, text, text) to anon, authenticated;
 
 drop function if exists public.get_place_report_history(integer, uuid);
 drop function if exists public.get_place_report_history(uuid, integer);

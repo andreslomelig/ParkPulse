@@ -12,6 +12,7 @@ import {
 import {
   fetchRecentReports,
   fetchReportsForPlace,
+  reactToParkingReport,
   submitParkingReport,
 } from "../lib/reports";
 import { fetchPlaceReviews } from "../lib/reviews";
@@ -36,6 +37,7 @@ jest.mock("../lib/places", () => ({
 jest.mock("../lib/reports", () => ({
   fetchRecentReports: jest.fn(),
   fetchReportsForPlace: jest.fn(),
+  reactToParkingReport: jest.fn(),
   submitParkingReport: jest.fn(),
 }));
 
@@ -170,6 +172,8 @@ describe("MapScreen", () => {
         reportedDistanceMeters: 18,
         reporterUserId: null,
         reporterDisplayName: "Comunidad",
+        confirmCount: 0,
+        disputeCount: 0,
         source: "remote",
       },
     ]);
@@ -201,6 +205,23 @@ describe("MapScreen", () => {
       reportedDistanceMeters: 11,
       reporterUserId: null,
       reporterDisplayName: "Comunidad",
+      confirmCount: 0,
+      disputeCount: 0,
+      source: "remote",
+    });
+    (reactToParkingReport as jest.Mock).mockResolvedValue({
+      id: "remote-place-report-1",
+      placeId: "fallback-1",
+      placeName: "Centro - Plaza Patria",
+      status: "available",
+      note: "Se libero una fila",
+      createdAt: "2026-03-19T18:09:00.000Z",
+      expiresAt: "2026-03-19T18:24:00.000Z",
+      reportedDistanceMeters: 22,
+      reporterUserId: null,
+      reporterDisplayName: "Comunidad",
+      confirmCount: 2,
+      disputeCount: 0,
       source: "remote",
     });
     (fetchPlaceReviews as jest.Mock).mockResolvedValue([
@@ -494,6 +515,23 @@ describe("MapScreen", () => {
       "Reporte enviado",
       expect.stringContaining("Centro - Plaza Patria")
     );
+  });
+
+  it("reacts to a recent report from the place history", async () => {
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("confirm-report-remote-place-report-1"));
+    });
+
+    expect(reactToParkingReport).toHaveBeenCalledWith({
+      reportId: "remote-place-report-1",
+      reaction: "confirm",
+    });
   });
 
   it("creates a parking place and persists it through the API", async () => {
