@@ -150,10 +150,18 @@ export default function AppNavigator() {
                   placeName={route.params.placeName}
                   onCancel={() => navigation.goBack()}
                   onReviewSaved={(placeId) =>
-                    navigation.navigate("Map", {
-                      focusPlaceId: placeId,
-                      focusPlaceRequestId: Date.now(),
-                      refreshPlaceRequestId: Date.now(),
+                    navigation.reset({
+                      index: 0,
+                      routes: [
+                        {
+                          name: "Map",
+                          params: {
+                            focusPlaceId: placeId,
+                            focusPlaceRequestId: Date.now(),
+                            refreshPlaceRequestId: Date.now(),
+                          },
+                        },
+                      ],
                     })
                   }
                 />
