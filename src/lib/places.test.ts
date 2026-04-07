@@ -84,7 +84,7 @@ describe("places", () => {
         latitude: Number.NaN,
         longitude: 2,
       })
-    ).toThrow("Las coordenadas del estacionamiento son invalidas.");
+    ).toThrow("Las coordenadas del estacionamiento son inválidas.");
 
     expect(() =>
       normalizeCreateParkingPlaceInput({
@@ -95,7 +95,7 @@ describe("places", () => {
           monday: "08:00",
         },
       })
-    ).toThrow("El horario semanal necesita apertura y cierre por dia.");
+    ).toThrow("El horario semanal necesita apertura y cierre por día.");
 
     expect(() =>
       normalizeCreateParkingPlaceInput({
@@ -119,7 +119,7 @@ describe("places", () => {
         hourlyCostMin: 20,
         hourlyCostMax: 10,
       })
-    ).toThrow("El costo maximo no puede ser menor al costo minimo.");
+    ).toThrow("El costo máximo no puede ser menor al costo mínimo.");
 
     expect(() =>
       normalizeCreateParkingPlaceInput({
@@ -129,7 +129,7 @@ describe("places", () => {
         capacityMin: 20,
         capacityMax: 10,
       })
-    ).toThrow("La capacidad maxima no puede ser menor a la minima.");
+    ).toThrow("La capacidad máxima no puede ser menor a la mínima.");
   });
 
   it("returns fallback places when supabase is unavailable", async () => {

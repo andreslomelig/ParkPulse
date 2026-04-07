@@ -35,21 +35,21 @@ describe("auth", () => {
         email: "bad-email",
         password: "Abcd123!",
       })
-    ).toThrow("Ingresa un correo valido.");
+    ).toThrow("Ingresa un correo válido.");
 
     expect(() =>
       normalizeSignInInput({
         email: "ada@example.com",
         password: "",
       })
-    ).toThrow("La contrasena es obligatoria.");
+    ).toThrow("La contraseña es obligatoria.");
 
     expect(() =>
       normalizeSignInInput({
         email: "ada@example.com",
         password: undefined as unknown as string,
       })
-    ).toThrow("La contrasena es obligatoria.");
+    ).toThrow("La contraseña es obligatoria.");
   });
 
   it("normalizes signup input", () => {
@@ -83,7 +83,7 @@ describe("auth", () => {
         phone: "+52 449 123 4567",
         password: "Abcd123!",
       })
-    ).toThrow("Ingresa un correo valido.");
+    ).toThrow("Ingresa un correo válido.");
 
     expect(() =>
       normalizeSignUpInput({
@@ -92,7 +92,7 @@ describe("auth", () => {
         phone: "123",
         password: "Abcd123!",
       })
-    ).toThrow("Ingresa un telefono valido.");
+    ).toThrow("Ingresa un teléfono válido.");
 
     expect(() =>
       normalizeSignUpInput({
@@ -101,7 +101,7 @@ describe("auth", () => {
         phone: "",
         password: "Abcd123!",
       })
-    ).toThrow("Ingresa un telefono valido.");
+    ).toThrow("Ingresa un teléfono válido.");
 
     expect(() =>
       normalizeSignUpInput({
@@ -111,7 +111,7 @@ describe("auth", () => {
         password: "",
       })
     ).toThrow(
-      "La contrasena debe tener 8 a 20 caracteres, una mayuscula, un numero y un signo."
+      "La contraseña debe tener de 8 a 20 caracteres, una mayúscula, un número y un signo."
     );
 
     expect(() =>
@@ -121,7 +121,7 @@ describe("auth", () => {
         phone: "sin digitos",
         password: "Abcd123!",
       })
-    ).toThrow("Ingresa un telefono valido.");
+    ).toThrow("Ingresa un teléfono válido.");
 
     expect(() =>
       normalizeSignUpInput({
@@ -131,7 +131,7 @@ describe("auth", () => {
         password: "short",
       })
     ).toThrow(
-      "La contrasena debe tener 8 a 20 caracteres, una mayuscula, un numero y un signo."
+      "La contraseña debe tener de 8 a 20 caracteres, una mayúscula, un número y un signo."
     );
 
     expect(() =>
@@ -142,7 +142,7 @@ describe("auth", () => {
         password: "abcd123!",
       })
     ).toThrow(
-      "La contrasena debe tener 8 a 20 caracteres, una mayuscula, un numero y un signo."
+      "La contraseña debe tener de 8 a 20 caracteres, una mayúscula, un número y un signo."
     );
 
     expect(() =>
@@ -153,7 +153,7 @@ describe("auth", () => {
         password: "Abcdefg!",
       })
     ).toThrow(
-      "La contrasena debe tener 8 a 20 caracteres, una mayuscula, un numero y un signo."
+      "La contraseña debe tener de 8 a 20 caracteres, una mayúscula, un número y un signo."
     );
 
     expect(() =>
@@ -164,7 +164,7 @@ describe("auth", () => {
         password: "Abcd1234",
       })
     ).toThrow(
-      "La contrasena debe tener 8 a 20 caracteres, una mayuscula, un numero y un signo."
+      "La contraseña debe tener de 8 a 20 caracteres, una mayúscula, un número y un signo."
     );
   });
 
@@ -379,7 +379,7 @@ describe("auth", () => {
         email: "ada@example.com",
         password: "Abcd123!",
       })
-    ).rejects.toThrow("No se pudo iniciar sesion.");
+    ).rejects.toThrow("No se pudo iniciar sesión.");
   });
 
   it("signs users up and reports whether email confirmation is needed", async () => {

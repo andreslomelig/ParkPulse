@@ -58,7 +58,7 @@ export function createSessionStorage(
     if (!hasWarned) {
       hasWarned = true;
       console.warn(
-        "AsyncStorage nativo no esta disponible. Se usara una sesion en memoria para evitar fallos de autenticacion."
+        "AsyncStorage nativo no está disponible. Se usará una sesión en memoria para evitar fallos de autenticación."
       );
     }
 
@@ -126,7 +126,7 @@ export function getSupabaseClient() {
 export function requireSupabaseClient() {
   if (!supabase) {
     throw new Error(
-      "Supabase no esta configurado. Configura EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY."
+      "Supabase no está configurado. Configura EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY."
     );
   }
 

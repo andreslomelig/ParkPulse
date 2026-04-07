@@ -163,7 +163,7 @@ const fallbackPlaces: ParkingPlace[] = [
   {
     id: "fallback-1",
     name: "Plaza Patria",
-    description: "Plaza comercial del centro historico con estacionamiento de uso comercial.",
+    description: "Plaza comercial del centro histórico con estacionamiento de uso comercial.",
     address: "Centro Comercial Plaza Patria, 5 de Mayo, Zona Centro, 20000 Aguascalientes, Ags.",
     openingHours: {
       monday: "08:00",
@@ -210,7 +210,7 @@ const fallbackPlaces: ParkingPlace[] = [
   {
     id: "fallback-2",
     name: "Estadio Victoria",
-    description: "Estadio de futbol con estacionamiento para dias de partido y eventos.",
+    description: "Estadio de fútbol con estacionamiento para días de partido y eventos.",
     address: "Calle Privada Jose Marin Iglesias, Colonia Heroes, 20259 Aguascalientes, Ags.",
     openingHours: {
       monday: null,
@@ -375,7 +375,7 @@ function normalizeParkingHours(
   }
 
   if (openingIsMissing || closingIsMissing) {
-    throw new Error("El horario semanal necesita apertura y cierre por dia.");
+    throw new Error("El horario semanal necesita apertura y cierre por día.");
   }
 
   if (
@@ -384,7 +384,7 @@ function normalizeParkingHours(
     typeof closingHoursInput !== "object" ||
     Array.isArray(closingHoursInput)
   ) {
-    throw new Error("El horario semanal del estacionamiento es invalido.");
+    throw new Error("El horario semanal del estacionamiento es inválido.");
   }
 
   const rawOpeningHours = openingHoursInput as Record<string, unknown>;
@@ -393,7 +393,7 @@ function normalizeParkingHours(
     (day) => !isParkingWeekday(day)
   );
   if (invalidDay) {
-    throw new Error("El horario semanal contiene dias invalidos.");
+    throw new Error("El horario semanal contiene días inválidos.");
   }
 
   const normalizedOpeningHours: ParkingHoursMap = {};
@@ -471,7 +471,7 @@ export function normalizeCreateParkingPlaceInput(
   }
 
   if (latitude === null || longitude === null) {
-    throw new Error("Las coordenadas del estacionamiento son invalidas.");
+    throw new Error("Las coordenadas del estacionamiento son inválidas.");
   }
 
   if (
@@ -479,11 +479,11 @@ export function normalizeCreateParkingPlaceInput(
     hourlyCostMax !== null &&
     hourlyCostMax < hourlyCostMin
   ) {
-    throw new Error("El costo maximo no puede ser menor al costo minimo.");
+    throw new Error("El costo máximo no puede ser menor al costo mínimo.");
   }
 
   if (capacityMin !== null && capacityMax !== null && capacityMax < capacityMin) {
-    throw new Error("La capacidad maxima no puede ser menor a la minima.");
+    throw new Error("La capacidad máxima no puede ser menor a la mínima.");
   }
 
   return {

@@ -1,7 +1,7 @@
 export const esMX = {
   appName: "ParkPulse",
   locationRequiredTitle: "Permiso de ubicación requerido",
-  locationRequiredBody: "Activa ubicación para ver estacionamientos cerca de ti.",
+  locationRequiredBody: "Activa la ubicación para ver estacionamientos cerca de ti.",
 
   placeDemoTitle: "Estacionamiento",
   updatedAgo: (mins: number) => `Actualizado hace ${mins} min`,
@@ -15,6 +15,6 @@ export const esMX = {
   center: "Centrar",
 
   errTooFar: "Debes estar cerca para reportar este lugar.",
-  errRateLimit: "Demasiados reportes. Intenta más tarde.",
+  errRateLimit: "Demasiados reportes. Inténtalo más tarde.",
   errOutsideZone: "Fuera de la zona piloto.",
 };

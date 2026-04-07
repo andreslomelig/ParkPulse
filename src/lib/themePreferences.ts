@@ -24,8 +24,8 @@ const themePreferenceStorage = createSessionStorage();
 export const APP_THEME_PALETTES: Record<AppThemeName, AppThemePalette> = {
   ocean: {
     name: "ocean",
-    label: "Oceano",
-    description: "Azules limpios para un estilo fresco y tecnico.",
+    label: "Océano",
+    description: "Azules limpios para un estilo fresco y técnico.",
     primary: "#0f172a",
     primarySoft: "#e0f2fe",
     accent: "#0891b2",
@@ -38,7 +38,7 @@ export const APP_THEME_PALETTES: Record<AppThemeName, AppThemePalette> = {
   sunset: {
     name: "sunset",
     label: "Atardecer",
-    description: "Naranjas y vino para un perfil mas calido.",
+    description: "Naranjas y vino para un perfil más cálido.",
     primary: "#7c2d12",
     primarySoft: "#ffedd5",
     accent: "#ea580c",
@@ -51,7 +51,7 @@ export const APP_THEME_PALETTES: Record<AppThemeName, AppThemePalette> = {
   forest: {
     name: "forest",
     label: "Bosque",
-    description: "Verdes sobrios para una interfaz mas tranquila.",
+    description: "Verdes sobrios para una interfaz más tranquila.",
     primary: "#14532d",
     primarySoft: "#dcfce7",
     accent: "#16a34a",

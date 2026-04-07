@@ -103,7 +103,7 @@ export default function AppNavigator() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0f172a" />
-        <Text style={styles.loadingTitle}>Cargando sesion...</Text>
+        <Text style={styles.loadingTitle}>Cargando sesión...</Text>
       </View>
     );
   }

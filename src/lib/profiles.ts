@@ -87,7 +87,7 @@ export async function upsertCurrentUserProfile(
   const user = await getAuthenticatedUser();
 
   if (!user?.id) {
-    throw new Error("Debes iniciar sesion para actualizar tu perfil.");
+    throw new Error("Debes iniciar sesión para actualizar tu perfil.");
   }
 
   const email = toTrimmedString(input.email) ?? toTrimmedString(user.email);

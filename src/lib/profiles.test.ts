@@ -311,7 +311,7 @@ describe("profiles", () => {
 
     (requireSupabaseClient as jest.Mock).mockReturnValue(noUserClient);
     await expect(upsertCurrentUserProfile({})).rejects.toThrow(
-      "Debes iniciar sesion para actualizar tu perfil."
+      "Debes iniciar sesión para actualizar tu perfil."
     );
 
     (requireSupabaseClient as jest.Mock).mockReturnValue(authErrorClient);

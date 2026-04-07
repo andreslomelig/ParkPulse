@@ -34,7 +34,7 @@ function normalizeFileExtension(
 export async function pickProfileAvatarImage(): Promise<PickedProfileImage | null> {
   const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permissionResult.granted) {
-    throw new Error("Debes permitir acceso a tus fotos para cambiar tu perfil.");
+    throw new Error("Debes permitir el acceso a tus fotos para actualizar tu perfil.");
   }
 
   const pickerResult = await ImagePicker.launchImageLibraryAsync({
@@ -81,7 +81,7 @@ export async function uploadProfileAvatar(
 
   const userId = toTrimmedString(authData.user?.id);
   if (!userId) {
-    throw new Error("Debes iniciar sesion para subir una foto de perfil.");
+    throw new Error("Debes iniciar sesión para subir una foto de perfil.");
   }
 
   const response = await fetch(pickedImage.localUri);
@@ -112,7 +112,7 @@ export async function uploadProfileAvatar(
   const publicUrl = toTrimmedString(data.publicUrl);
 
   if (!publicUrl) {
-    throw new Error("No se pudo obtener la URL publica del avatar.");
+    throw new Error("No se pudo obtener la URL pública del avatar.");
   }
 
   return withCacheBustingQueryParam(publicUrl);

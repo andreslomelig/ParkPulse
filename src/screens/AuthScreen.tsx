@@ -53,7 +53,7 @@ export default function AuthScreen() {
           setFeedback({
             tone: "success",
             message:
-              "Tu cuenta fue creada. Revisa tu correo para confirmar y luego inicia sesion.",
+              "Tu cuenta fue creada. Revisa tu correo para confirmar y luego inicia sesión.",
           });
           setMode("login");
           setPassword("");
@@ -74,7 +74,7 @@ export default function AuthScreen() {
         message:
           error instanceof Error
             ? error.message
-            : "No se pudo completar la autenticacion.",
+            : "No se pudo completar la autenticación.",
       });
     } finally {
       setIsSubmitting(false);
@@ -102,7 +102,7 @@ export default function AuthScreen() {
             <Text style={styles.eyebrow}>ParkPulse</Text>
             <Text style={styles.title}>Accede para ver el mapa y reportar lugares.</Text>
             <Text style={styles.subtitle}>
-              Crea tu cuenta o inicia sesion para usar todas las funciones.
+              Crea tu cuenta o inicia sesión para usar todas las funciones.
             </Text>
           </View>
 
@@ -168,7 +168,7 @@ export default function AuthScreen() {
 
             {isSignUp ? (
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Telefono</Text>
+                <Text style={styles.label}>Teléfono</Text>
                 <TextInput
                   testID="auth-phone-input"
                   value={phone}
@@ -182,12 +182,12 @@ export default function AuthScreen() {
             ) : null}
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Contrasena</Text>
+              <Text style={styles.label}>Contraseña</Text>
               <TextInput
                 testID="auth-password-input"
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Tu contrasena"
+                placeholder="Tu contraseña"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -198,7 +198,7 @@ export default function AuthScreen() {
 
             {isSignUp ? (
               <Text style={styles.helper}>
-                Usa 8 a 20 caracteres, al menos una mayuscula, un numero y un signo.
+                Usa de 8 a 20 caracteres, con al menos una mayúscula, un número y un signo.
               </Text>
             ) : null}
 

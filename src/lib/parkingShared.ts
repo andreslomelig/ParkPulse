@@ -28,10 +28,10 @@ export type ParkingDayHours = {
 export const PARKING_WEEKDAY_LABELS: Record<ParkingWeekday, string> = {
   monday: "Lunes",
   tuesday: "Martes",
-  wednesday: "Miercoles",
+  wednesday: "Miércoles",
   thursday: "Jueves",
   friday: "Viernes",
-  saturday: "Sabado",
+  saturday: "Sábado",
   sunday: "Domingo",
 };
 
@@ -171,7 +171,7 @@ export function normalizeAccessType(
   raw: string | null | undefined
 ): AccessType {
   const value = raw?.trim().toLowerCase();
-  if (value === "public" || value === "publico") return "public";
+  if (value === "public" || value === "publico" || value === "público") return "public";
   if (value === "private" || value === "privado") return "private";
   if (value === "mixed" || value === "mixto") return "mixed";
   return "unknown";

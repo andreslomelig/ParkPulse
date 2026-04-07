@@ -53,7 +53,7 @@ describe("reports", () => {
         placeName: "Lugar",
         status: "available",
       })
-    ).toThrow("El reporte necesita un estacionamiento valido.");
+    ).toThrow("El reporte necesita un estacionamiento válido.");
 
     expect(() =>
       normalizeSubmitParkingReportInput({
@@ -61,7 +61,7 @@ describe("reports", () => {
         placeName: "Lugar",
         status: "unknown" as never,
       })
-    ).toThrow("El estado del reporte es invalido.");
+    ).toThrow("El estado del reporte es inválido.");
 
     expect(() =>
       normalizeSubmitParkingReportInput({
@@ -70,7 +70,7 @@ describe("reports", () => {
         status: "available",
         rating: 9,
       })
-    ).toThrow("La calificacion del reporte debe estar entre 1 y 5.");
+    ).toThrow("La calificación del reporte debe estar entre 1 y 5.");
 
     expect(
       normalizeReactToParkingReportInput({
@@ -88,14 +88,14 @@ describe("reports", () => {
         reportId: "",
         reaction: "confirm",
       })
-    ).toThrow("La reaccion necesita un reporte valido.");
+    ).toThrow("La reacción necesita un reporte válido.");
 
     expect(() =>
       normalizeReactToParkingReportInput({
         reportId: "report-1",
         reaction: "bad" as never,
       })
-    ).toThrow("La reaccion del reporte es invalida.");
+    ).toThrow("La reacción del reporte es inválida.");
   });
 
   it("returns fallback recent reports without supabase", async () => {

@@ -24,37 +24,43 @@ export default function PrivacyLegalScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Demo academica</Text>
-          <Text style={styles.title}>Privacidad y legal</Text>
+          <Text style={styles.eyebrow}>Actualizado el 7 de abril de 2026</Text>
+          <Text style={styles.title}>Política de privacidad</Text>
           <Text style={styles.subtitle}>
-            Esta pantalla resume de forma clara como se usa la informacion dentro
-            del MVP de ParkPulse.
+            En ParkPulse tratamos la información necesaria para mostrar
+            estacionamientos cercanos, validar reportes y mejorar la experiencia
+            de uso. No utilizamos estos datos para fines ajenos a la operación y
+            evolución del servicio.
           </Text>
         </View>
 
         <InfoCard
-          title="Que es ParkPulse"
-          body="ParkPulse es una demo educativa para visualizar estacionamientos y reportes comunitarios de disponibilidad dentro de una zona piloto en Aguascalientes."
+          title="Responsable del servicio"
+          body="ParkPulse es una plataforma digital de información sobre estacionamiento operada por ParkPulse Mobility Labs, un equipo enfocado en experiencias de movilidad urbana en Aguascalientes, México."
         />
         <InfoCard
-          title="Datos que puede usar la app"
-          body="La app puede usar tu ubicacion mientras esta abierta para centrar el mapa y validar si estas cerca del lugar que quieres reportar. Tambien puede guardar el estado que reportes sobre un estacionamiento."
+          title="Información que recopilamos"
+          body="Podemos procesar tu ubicación en primer plano, búsquedas dentro del mapa, reportes de disponibilidad, reseñas, nombre visible, avatar y datos técnicos básicos del dispositivo, como versión de la app y eventos de funcionamiento."
         />
         <InfoCard
-          title="Uso de ubicacion"
-          body="La ubicacion se usa para mostrar lugares cercanos y para evitar reportes enviados desde muy lejos. En esta etapa no hay funciones de navegacion interna ni rastreo en segundo plano."
+          title="Finalidad del tratamiento"
+          body="Usamos la información exclusivamente para mostrar lugares cercanos, validar que un reporte provenga de una zona razonable, priorizar resultados relevantes y detectar mejoras de experiencia de usuario, rendimiento y confiabilidad del mapa."
+        />
+        <InfoCard
+          title="Ubicación y validación"
+          body="La ubicación solo se solicita cuando la necesitas para centrar el mapa o enviar un reporte. ParkPulse no realiza rastreo continuo en segundo plano y no comercializa datos de ubicación con terceros."
         />
         <InfoCard
           title="Contenido comunitario"
-          body="Los estados de Disponible, Lleno o Cerrado pueden venir de la comunidad. Por eso la informacion es orientativa y puede cambiar rapidamente."
+          body="Los reportes y reseñas pueden mostrarse junto con tu nombre visible o alias dentro de la comunidad. Te recomendamos no publicar datos personales sensibles en comentarios, referencias o futuras evidencias."
         />
         <InfoCard
-          title="Alcance de la demo"
-          body="Esta version no administra pagos, reservas ni garantias de disponibilidad. Tampoco reemplaza informacion oficial del estacionamiento o de autoridades locales."
+          title="Conservación y seguridad"
+          body="Conservamos los datos durante el tiempo razonablemente necesario para operar la plataforma, auditar incidencias y mejorar la experiencia. Aplicamos controles de acceso, almacenamiento protegido y registros técnicos para prevenir usos indebidos."
         />
         <InfoCard
-          title="Uso responsable"
-          body="No compartas datos personales sensibles en nombres, notas o futuras fotos. Si una ubicacion es incorrecta, debe corregirse antes de considerarse informacion confiable."
+          title="Tus decisiones"
+          body="Puedes actualizar tu perfil, cambiar tu foto, modificar tu nombre visible y dejar de compartir nueva información desde la app en cualquier momento. Si deseas solicitar revisión o eliminación de datos asociados a tu cuenta, podrás hacerlo desde soporte del servicio."
         />
       </ScrollView>
     </SafeAreaView>

@@ -72,7 +72,7 @@ describe("AuthScreen", () => {
       expect(screen.getByTestId("auth-feedback")).toBeTruthy();
       expect(
         screen.getByText(
-          "Tu cuenta fue creada. Revisa tu correo para confirmar y luego inicia sesion."
+          "Tu cuenta fue creada. Revisa tu correo para confirmar y luego inicia sesión."
         )
       ).toBeTruthy();
     });

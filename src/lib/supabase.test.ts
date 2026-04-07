@@ -62,7 +62,7 @@ describe("supabase", () => {
     expect(module.getSupabaseClient()).toBeNull();
     expect(module.supabase).toBeNull();
     expect(() => module.requireSupabaseClient()).toThrow(
-      "Supabase no esta configurado. Configura EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY."
+      "Supabase no está configurado. Configura EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY."
     );
     expect(createClient).not.toHaveBeenCalled();
   });
