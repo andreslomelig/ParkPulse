@@ -140,6 +140,25 @@ describe("AppNavigator", () => {
     });
   });
 
+  it("shows the loading state before resolving the initial auth session", async () => {
+    let resolveUser!: (value: unknown) => void;
+    (getCurrentAuthUser as jest.Mock).mockReturnValue(
+      new Promise<unknown>((resolve) => {
+        resolveUser = resolve;
+      })
+    );
+
+    const screen = render(<AppNavigator />);
+
+    expect(screen.getByText("Cargando sesion...")).toBeTruthy();
+
+    resolveUser(null);
+
+    await waitFor(() => {
+      expect(screen.getByText("Auth Screen")).toBeTruthy();
+    });
+  });
+
   it("shows the map when there is an authenticated session", async () => {
     (getCurrentAuthUser as jest.Mock).mockResolvedValue({
       id: "user-1",
@@ -149,6 +168,33 @@ describe("AppNavigator", () => {
     });
 
     const screen = render(<AppNavigator />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Ada Lovelace")).toBeTruthy();
+    });
+  });
+
+  it("transitions from auth to the app when auth state changes after startup", async () => {
+    let authListener!: (user: unknown) => void;
+    (getCurrentAuthUser as jest.Mock).mockResolvedValue(null);
+    (subscribeToAuthChanges as jest.Mock).mockImplementation((listener) => {
+      authListener = listener;
+      return () => undefined;
+    });
+
+    const screen = render(<AppNavigator />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Auth Screen")).toBeTruthy();
+    });
+
+    authListener({
+      id: "user-1",
+      email: "ada@example.com",
+      fullName: "Ada Lovelace",
+      phone: "+52 449 123 4567",
+      avatarUrl: null,
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Ada Lovelace")).toBeTruthy();
