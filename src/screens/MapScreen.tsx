@@ -373,6 +373,28 @@ function distanceInMeters(from: LatLng, to: LatLng) {
   return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function sortPlacesByProximity(
+  places: ParkingPlace[],
+  origin: LatLng | null
+) {
+  if (!origin) return places.slice();
+
+  return places
+    .map((place, index) => ({
+      place,
+      index,
+      distanceMeters: distanceInMeters(origin, {
+        latitude: place.latitude,
+        longitude: place.longitude,
+      }),
+    }))
+    .sort(
+      (left, right) =>
+        left.distanceMeters - right.distanceMeters || left.index - right.index
+    )
+    .map(({ place }) => place);
+}
+
 export default function MapScreen({
   currentUser,
   onOpenProfileSettings,
@@ -630,13 +652,31 @@ export default function MapScreen({
 
   const filteredPlaces = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) return mapReadyPlaces.slice(0, 8);
+    const searchOrigin =
+      userCoord ??
+      (region
+        ? {
+            latitude: region.latitude,
+            longitude: region.longitude,
+          }
+        : null);
 
-    return mapReadyPlaces.filter((place) => {
-      const haystack = `${place.name} ${statusToLabel(place.status)}`.toLowerCase();
-      return haystack.includes(normalizedQuery);
-    });
-  }, [mapReadyPlaces, searchQuery]);
+    const matchingPlaces = normalizedQuery
+      ? mapReadyPlaces.filter((place) => {
+          const haystack = `${place.name} ${statusToLabel(place.status)}`.toLowerCase();
+          return haystack.includes(normalizedQuery);
+        })
+      : mapReadyPlaces;
+
+    const proximitySortedPlaces = sortPlacesByProximity(
+      matchingPlaces,
+      searchOrigin
+    );
+
+    return normalizedQuery
+      ? proximitySortedPlaces
+      : proximitySortedPlaces.slice(0, 8);
+  }, [mapReadyPlaces, region, searchQuery, userCoord]);
 
   const isSelectedPlaceSaved = selectedPlace ? savedPlaceIds.includes(selectedPlace.id) : false;
   const adaptiveRefreshSeconds = selectedPlace?.recommendedRefreshSeconds ?? 180;
@@ -2172,6 +2212,7 @@ export default function MapScreen({
                   filteredPlaces.map((place) => (
                     <Pressable
                       key={place.id}
+                      testID="search-result-row"
                       style={styles.resultRow}
                       onPress={() => focusPlaceFromSearch(place)}
                     >

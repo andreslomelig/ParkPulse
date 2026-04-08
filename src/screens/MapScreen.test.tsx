@@ -1,6 +1,6 @@
 import React from "react";
 import { Alert } from "react-native";
-import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react-native";
 import * as Location from "expo-location";
 import BottomSheet from "@gorhom/bottom-sheet";
 import MapScreen from "./MapScreen";
@@ -280,6 +280,52 @@ describe("MapScreen", () => {
     await waitFor(() => {
       expect(screen.getByText("Zona Feria - Estadio")).toBeTruthy();
     });
+  });
+
+  it("sorts matching search results by proximity", async () => {
+    (fetchPlaces as jest.Mock).mockResolvedValueOnce([
+      {
+        ...basePlaces[0],
+        id: "search-far",
+        name: "Centro - Lejano",
+        latitude: 21.845,
+        longitude: -102.332,
+      },
+      {
+        ...basePlaces[1],
+        id: "search-mid",
+        name: "Centro - Intermedio",
+        latitude: 21.874,
+        longitude: -102.297,
+      },
+      {
+        ...basePlaces[0],
+        id: "search-near",
+        name: "Centro - Cercano",
+        latitude: 21.8826,
+        longitude: -102.2824,
+      },
+    ]);
+
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Lejano")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Buscar estacionamiento"));
+
+    const searchInput = await waitFor(() =>
+      screen.getByPlaceholderText("Buscar zona, plaza o estacionamiento")
+    );
+
+    fireEvent.changeText(searchInput, "Centro");
+
+    const resultRows = await waitFor(() => screen.getAllByTestId("search-result-row"));
+
+    expect(within(resultRows[0]).getByText("Centro - Cercano")).toBeTruthy();
+    expect(within(resultRows[1]).getByText("Centro - Intermedio")).toBeTruthy();
+    expect(within(resultRows[2]).getByText("Centro - Lejano")).toBeTruthy();
   });
 
   it("refreshes map data from the floating button", async () => {
