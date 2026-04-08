@@ -1224,6 +1224,17 @@ export default function MapScreen({
     }
   };
 
+  const openMapGuide = () => {
+    Alert.alert(
+      "Guia del mapa",
+      [
+        "Toca un marcador para abrir la ficha completa del estacionamiento.",
+        "Usa Validar solo cuando estes cerca del lugar para mantener el estado confiable.",
+        "Usa + para registrar un nuevo punto y actualiza el mapa cuando quieras refrescar los datos.",
+      ].join("\n\n")
+    );
+  };
+
   const onNavigatePress = async (place: ParkingPlace) => {
     const label = encodeURIComponent(place.name);
     const url =
@@ -1347,15 +1358,11 @@ export default function MapScreen({
 
       <View style={styles.fabColumn}>
         <Pressable
+          testID="open-map-guide-button"
           style={[styles.fab, styles.fabDark]}
-          onPress={() =>
-            Alert.alert(
-              "Ayuda rápida",
-              "Toca un marcador para validar su estado o usa + para registrar un nuevo estacionamiento."
-            )
-          }
+          onPress={openMapGuide}
         >
-          <Text style={styles.fabDarkIcon}>!</Text>
+          <Text style={styles.fabDarkIcon}>i</Text>
         </Pressable>
 
         <Pressable
@@ -1630,21 +1637,55 @@ export default function MapScreen({
       ) : reportingPlace ? (
         <View style={[styles.sheet, styles.sheetExpanded]}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Reportar estado</Text>
-          <Text style={styles.sheetSubtitle} numberOfLines={1}>
-            {reportingPlace.name}
-          </Text>
+          <Text style={styles.sheetEyebrow}>Validacion en sitio</Text>
+          <View style={styles.reportHeaderRow}>
+            <View style={styles.reportHeaderCopy}>
+              <Text style={styles.sheetTitle}>Reportar estado</Text>
+              <Text style={styles.sheetSubtitle} numberOfLines={1}>
+                {reportingPlace.name}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.statusPill,
+                { backgroundColor: `${statusToColor(reportingPlace.status)}22` },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusPillText,
+                  { color: statusToColor(reportingPlace.status) },
+                ]}
+              >
+                {statusToLabel(reportingPlace.status)}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.sheetMeta}>
-            Solo puedes reportar si estás cerca del lugar (máx. {REPORT_RADIUS_METERS} m).
+            Debes estar a {REPORT_RADIUS_METERS} m o menos para validar este lugar.
           </Text>
 
-          <View style={styles.validationPanel}>
-            <Text style={styles.validationTitle}>Antes de reportar</Text>
-            <Text style={styles.validationBody}>
-              Tu reporte ayuda a mantener el estado del estacionamiento más
-              confiable para toda la comunidad.
+          <View style={styles.reportSummaryCard}>
+            <Text style={styles.reportSummaryLabel}>Estado visible ahora</Text>
+            <Text style={styles.reportSummaryTitle}>
+              {getStatusSupportLabel(reportingPlace.status)}
+            </Text>
+            <Text style={styles.reportSummaryMeta}>
+              {getUpdatedLabel(reportingPlace)} · {getStatusConfidenceLabel(reportingPlace)}
             </Text>
           </View>
+
+          <View style={styles.validationPanel}>
+            <Text style={styles.validationTitle}>Que registraremos</Text>
+            <Text style={styles.validationBody}>
+              Esta validacion guarda el estado, la hora y tu distancia aproximada
+              al lugar para mantener el mapa actualizado con datos recientes.
+            </Text>
+          </View>
+
+          <Text style={styles.reportHint}>
+            Elige la opcion que mejor describa lo que ves en este momento.
+          </Text>
 
           <View style={styles.reportOptions}>
             <Pressable
@@ -2431,6 +2472,41 @@ const styles = StyleSheet.create({
   sheetSubtitle: { marginTop: 4, fontSize: 13, color: "#475569", fontWeight: "500" },
   sheetMeta: { marginTop: 2, fontSize: 12, color: "#94a3b8" },
   sheetEyebrow: { fontSize: 11, color: "#0891b2", fontWeight: "800", textTransform: "uppercase" },
+  reportHeaderRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  reportHeaderCopy: { flex: 1 },
+  reportSummaryCard: {
+    marginTop: 14,
+    backgroundColor: "#ecfeff",
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+  },
+  reportSummaryLabel: {
+    fontSize: 12,
+    color: "#155e75",
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  reportSummaryTitle: {
+    marginTop: 8,
+    fontSize: 16,
+    lineHeight: 20,
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  reportSummaryMeta: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "#0f766e",
+    fontWeight: "600",
+  },
   placeSheetHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -2866,6 +2942,13 @@ const styles = StyleSheet.create({
   },
   validationTitle: { fontSize: 15, color: "#0f172a", fontWeight: "800" },
   validationBody: { marginTop: 6, fontSize: 13, lineHeight: 18, color: "#475569", fontWeight: "500" },
+  reportHint: {
+    marginTop: 12,
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#475569",
+    fontWeight: "600",
+  },
   reportOptions: { marginTop: 14, gap: 10 },
   reportOption: {
     borderRadius: 14,

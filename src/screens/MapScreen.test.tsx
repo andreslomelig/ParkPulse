@@ -335,6 +335,21 @@ describe("MapScreen", () => {
     });
   });
 
+  it("opens the map guide from the info action", async () => {
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-map-guide-button"));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      "Guia del mapa",
+      expect.stringContaining("Usa Validar")
+    );
+  });
+
   it("opens the menu shell and shows recent report history", async () => {
     const screen = renderMapScreen();
 
@@ -440,6 +455,8 @@ describe("MapScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Reportar estado")).toBeTruthy();
+      expect(screen.getByText("Estado visible ahora")).toBeTruthy();
+      expect(screen.getByText("Que registraremos")).toBeTruthy();
       expect(screen.getByTestId("report-status-available")).toBeTruthy();
       expect(screen.getByTestId("report-status-full")).toBeTruthy();
       expect(screen.getByTestId("report-status-closed")).toBeTruthy();
