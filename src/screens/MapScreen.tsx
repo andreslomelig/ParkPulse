@@ -373,6 +373,17 @@ function distanceInMeters(from: LatLng, to: LatLng) {
   return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function formatApproxDistance(distanceMeters: number) {
+  const roundedMeters = Math.round(distanceMeters);
+  if (roundedMeters < 1000) return `${roundedMeters} m`;
+
+  const kilometers = distanceMeters / 1000;
+  const formattedKilometers =
+    kilometers >= 10 ? Math.round(kilometers).toString() : kilometers.toFixed(1);
+
+  return `${formattedKilometers.replace(/\.0$/, "")} km`;
+}
+
 function sortPlacesByProximity(
   places: ParkingPlace[],
   origin: LatLng | null
@@ -393,6 +404,20 @@ function sortPlacesByProximity(
         left.distanceMeters - right.distanceMeters || left.index - right.index
     )
     .map(({ place }) => place);
+}
+
+function getPlaceDistanceLabel(
+  origin: LatLng | null,
+  place: ParkingPlace
+) {
+  if (!origin) return null;
+
+  return formatApproxDistance(
+    distanceInMeters(origin, {
+      latitude: place.latitude,
+      longitude: place.longitude,
+    })
+  );
 }
 
 export default function MapScreen({
@@ -650,17 +675,18 @@ export default function MapScreen({
     return mapReadyPlaces.find((place) => place.id === reportingPlaceId) ?? null;
   }, [mapReadyPlaces, reportingPlaceId]);
 
-  const filteredPlaces = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    const searchOrigin =
-      userCoord ??
+  const searchOrigin = useMemo<LatLng | null>(() => {
+    return userCoord ??
       (region
         ? {
             latitude: region.latitude,
             longitude: region.longitude,
           }
         : null);
+  }, [region, userCoord]);
 
+  const filteredPlaces = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
     const matchingPlaces = normalizedQuery
       ? mapReadyPlaces.filter((place) => {
           const haystack = `${place.name} ${statusToLabel(place.status)}`.toLowerCase();
@@ -676,7 +702,7 @@ export default function MapScreen({
     return normalizedQuery
       ? proximitySortedPlaces
       : proximitySortedPlaces.slice(0, 8);
-  }, [mapReadyPlaces, region, searchQuery, userCoord]);
+  }, [mapReadyPlaces, searchOrigin, searchQuery]);
 
   const isSelectedPlaceSaved = selectedPlace ? savedPlaceIds.includes(selectedPlace.id) : false;
   const adaptiveRefreshSeconds = selectedPlace?.recommendedRefreshSeconds ?? 180;
@@ -2228,7 +2254,9 @@ export default function MapScreen({
                           {statusToLabel(place.status)} · {getUpdatedLabel(place)}
                         </Text>
                       </View>
-                      <Text style={styles.resultAction}>Ver</Text>
+                      <Text style={styles.resultAction}>
+                        {getPlaceDistanceLabel(searchOrigin, place) ?? ""}
+                      </Text>
                     </Pressable>
                   ))
                 ) : (
@@ -3084,7 +3112,14 @@ const styles = StyleSheet.create({
   resultCopy: { flex: 1 },
   resultTitle: { fontSize: 15, color: "#0f172a", fontWeight: "800" },
   resultSubtitle: { marginTop: 3, fontSize: 12, color: "#64748b", fontWeight: "500" },
-  resultAction: { fontSize: 13, color: "#0891b2", fontWeight: "800" },
+  resultAction: {
+    minWidth: 56,
+    marginLeft: 12,
+    fontSize: 13,
+    color: "#0891b2",
+    fontWeight: "800",
+    textAlign: "right",
+  },
   emptySearchState: {
     paddingVertical: 20,
     alignItems: "center",

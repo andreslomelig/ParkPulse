@@ -328,6 +328,44 @@ describe("MapScreen", () => {
     expect(within(resultRows[2]).getByText("Centro - Lejano")).toBeTruthy();
   });
 
+  it("shows approximate search distances in meters and kilometers", async () => {
+    (fetchPlaces as jest.Mock).mockResolvedValueOnce([
+      {
+        ...basePlaces[0],
+        id: "search-meters",
+        name: "Centro - A unos metros",
+        latitude: 21.88234,
+        longitude: -102.28229,
+      },
+      {
+        ...basePlaces[1],
+        id: "search-kilometers",
+        name: "Centro - A un kilometro",
+        latitude: 21.89234,
+        longitude: -102.28259,
+      },
+    ]);
+
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - A unos metros")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Buscar estacionamiento"));
+
+    const searchInput = await waitFor(() =>
+      screen.getByPlaceholderText("Buscar zona, plaza o estacionamiento")
+    );
+
+    fireEvent.changeText(searchInput, "Centro");
+
+    const resultRows = await waitFor(() => screen.getAllByTestId("search-result-row"));
+
+    expect(within(resultRows[0]).getByText("31 m")).toBeTruthy();
+    expect(within(resultRows[1]).getByText("1.1 km")).toBeTruthy();
+  });
+
   it("refreshes map data from the floating button", async () => {
     (fetchRecentReports as jest.Mock)
       .mockResolvedValueOnce([
