@@ -150,7 +150,7 @@ describe("AppNavigator", () => {
 
     const screen = render(<AppNavigator />);
 
-    expect(screen.getByText("Cargando sesion...")).toBeTruthy();
+    expect(screen.getByText("Cargando sesión...")).toBeTruthy();
 
     resolveUser(null);
 

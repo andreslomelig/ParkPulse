@@ -29,11 +29,11 @@ export function normalizeSubmitParkingRatingInput(
   const rating = normalizeRatingValue(input.rating);
 
   if (!placeId) {
-    throw new Error("La calificacion necesita un estacionamiento valido.");
+    throw new Error("La calificación necesita un estacionamiento válido.");
   }
 
   if (rating === null) {
-    throw new Error("La calificacion debe estar entre 1 y 5.");
+    throw new Error("La calificación debe estar entre 1 y 5.");
   }
 
   return {
@@ -102,7 +102,7 @@ export async function submitParkingRating(
   );
 
   if (!mappedSummary) {
-    throw new Error("No se pudo interpretar la calificacion del estacionamiento.");
+    throw new Error("No se pudo interpretar la calificación del estacionamiento.");
   }
 
   return mappedSummary;

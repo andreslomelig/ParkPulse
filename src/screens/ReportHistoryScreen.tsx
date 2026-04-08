@@ -149,7 +149,7 @@ export default function ReportHistoryScreen({
           <Text style={styles.eyebrow}>Tu actividad</Text>
           <Text style={styles.title}>Historial de reportes</Text>
           <Text style={styles.body}>
-            Revisa los estados que has validado y en que estacionamientos has
+            Revisa los estados que has validado y en qué estacionamientos has
             participado recientemente.
           </Text>
 
@@ -182,8 +182,8 @@ export default function ReportHistoryScreen({
           <View style={styles.heroFooter}>
             <Text style={styles.heroFooterText}>
               {summary.lastReportAt
-                ? `Ultimo reporte ${getElapsedLabel(summary.lastReportAt)}`
-                : "Aun no has enviado reportes."}
+                ? `Último reporte ${getElapsedLabel(summary.lastReportAt)}`
+                : "Aún no has enviado reportes."}
             </Text>
             <Pressable
               testID="report-history-refresh-button"
@@ -205,14 +205,14 @@ export default function ReportHistoryScreen({
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Cargando historial...</Text>
               <Text style={styles.emptyBody}>
-                Estamos recuperando tus reportes mas recientes.
+                Estamos recuperando tus reportes más recientes.
               </Text>
             </View>
           ) : reports.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Todavia no has enviado reportes.</Text>
+              <Text style={styles.emptyTitle}>Todavía no has enviado reportes.</Text>
               <Text style={styles.emptyBody}>
-                Cuando valides un estacionamiento desde el mapa, aparecera aqui con
+                Cuando valides un estacionamiento desde el mapa, aparecerá aquí con
                 su estado y la hora del reporte.
               </Text>
             </View>

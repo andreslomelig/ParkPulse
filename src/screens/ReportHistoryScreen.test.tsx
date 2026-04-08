@@ -58,7 +58,7 @@ describe("ReportHistoryScreen", () => {
     const screen = render(<ReportHistoryScreen currentUser={currentUser} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Todavia no has enviado reportes.")).toBeTruthy();
+      expect(screen.getByText("Todavía no has enviado reportes.")).toBeTruthy();
     });
   });
 
@@ -84,7 +84,7 @@ describe("ReportHistoryScreen", () => {
     const screen = render(<ReportHistoryScreen currentUser={currentUser} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Todavia no has enviado reportes.")).toBeTruthy();
+      expect(screen.getByText("Todavía no has enviado reportes.")).toBeTruthy();
     });
 
     fireEvent.press(screen.getByTestId("report-history-refresh-button"));

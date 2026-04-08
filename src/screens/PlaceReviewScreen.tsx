@@ -87,7 +87,7 @@ export default function PlaceReviewScreen({
 
   const handlePublishReview = async () => {
     if (rating < 1) {
-      Alert.alert("Calificacion requerida", "Selecciona entre 1 y 5 estrellas.");
+      Alert.alert("Calificación requerida", "Selecciona entre 1 y 5 estrellas.");
       return;
     }
 
@@ -107,7 +107,7 @@ export default function PlaceReviewScreen({
       onReviewSaved(placeId);
       Alert.alert(
         "Reseña publicada",
-        `${resolvedPlaceName} ya incluye tu calificacion en el promedio.`
+        `${resolvedPlaceName} ya incluye tu calificación en el promedio.`
       );
     } catch (error) {
       console.error(error);
@@ -138,7 +138,7 @@ export default function PlaceReviewScreen({
             <Text style={styles.placeName}>{resolvedPlaceName}</Text>
             <Text style={styles.placeMeta}>
               {isLoadingPlace
-                ? "Cargando informacion del estacionamiento..."
+                ? "Cargando información del estacionamiento..."
                 : place
                   ? `${formatRatingBadgeSummary(place)} actual`
                   : "Comparte tu experiencia para ayudar a la comunidad."}
@@ -164,7 +164,7 @@ export default function PlaceReviewScreen({
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Tu calificacion</Text>
+              <Text style={styles.sectionLabel}>Tu calificación</Text>
               <StarRatingRow
                 value={rating}
                 onChange={setRating}
@@ -172,17 +172,17 @@ export default function PlaceReviewScreen({
                 testIDPrefix="review-star"
               />
               <Text style={styles.sectionHint}>
-                Marca de 1 a 5 estrellas segun tu experiencia reciente.
+                Marca de 1 a 5 estrellas según tu experiencia reciente.
               </Text>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Descripcion</Text>
+              <Text style={styles.sectionLabel}>Descripción</Text>
               <TextInput
                 testID="review-comment-input"
                 value={comment}
                 onChangeText={setComment}
-                placeholder="Comparte detalles de tu experiencia en este lugar"
+                placeholder="Comparte detalles sobre tu experiencia en este lugar"
                 placeholderTextColor="#94a3b8"
                 style={[styles.textArea, styles.textAreaMultiline]}
                 multiline

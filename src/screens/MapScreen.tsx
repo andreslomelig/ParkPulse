@@ -185,7 +185,7 @@ function statusToColor(status: ParkingStatus) {
 
 function getUpdatedLabel(place: ParkingPlace) {
   const elapsedLabel = getElapsedLabel(place.updatedAt);
-  return elapsedLabel ? `Actualizado ${elapsedLabel}` : "Sin actualizacion reciente";
+  return elapsedLabel ? `Actualizado ${elapsedLabel}` : "Sin actualización reciente";
 }
 
 function getStatusSupportLabel(status: ParkingStatus) {
@@ -193,7 +193,7 @@ function getStatusSupportLabel(status: ParkingStatus) {
     case "available":
       return "Alta probabilidad de encontrar espacio";
     case "full":
-      return "Considera una opcion cercana";
+      return "Considera una opción cercana";
     case "closed":
       return "No disponible por ahora";
     default:
@@ -210,7 +210,7 @@ function getStatusConfidenceLabel(place: ParkingPlace) {
     case "low":
       return "Confianza baja";
     default:
-      return place.activeReportCount > 0 ? "Validacion en curso" : "Sin validar";
+      return place.activeReportCount > 0 ? "Validación en curso" : "Sin validar";
   }
 }
 
@@ -230,16 +230,16 @@ function getReportReactionLabel(report: ParkingReport) {
   const disputes = report.disputeCount ?? 0;
 
   if (confirms === 0 && disputes === 0) {
-    return "Aun sin reacciones comunitarias";
+    return "Aún sin reacciones de la comunidad";
   }
 
-  return `${confirms} confirma · ${disputes} disputa`;
+  return `${confirms} confirman · ${disputes} discrepan`;
 }
 
 function getAccessTypeLabel(accessType: ParkingPlace["accessType"]) {
   switch (accessType) {
     case "public":
-      return "Publico";
+      return "Público";
     case "private":
       return "Privado";
     case "mixed":
@@ -450,7 +450,7 @@ export default function MapScreen({
 
     load().catch((e) => {
       console.error(e);
-      Alert.alert("Error", "No se pudo cargar estacionamientos.");
+      Alert.alert("Error", "No se pudieron cargar los estacionamientos.");
       setIsLoadingPlaces(false);
     });
 
@@ -577,7 +577,7 @@ export default function MapScreen({
       })
       .catch((e) => {
         console.error(e);
-        Alert.alert("Error", "No se pudo obtener tu ubicacion.");
+        Alert.alert("Error", "No se pudo obtener tu ubicación.");
       });
   }, []);
 
@@ -751,7 +751,7 @@ export default function MapScreen({
       return;
     }
 
-    Alert.alert("Privacidad y legal", "Esta seccion se abrira desde la navegacion principal.");
+    Alert.alert("Privacidad y legal", "Esta sección se abrirá desde la navegación principal.");
   };
 
   const openProfileSettings = () => {
@@ -762,7 +762,7 @@ export default function MapScreen({
       return;
     }
 
-    Alert.alert("Perfil y tema", "Esta seccion se abrira desde la navegacion principal.");
+    Alert.alert("Perfil y tema", "Esta sección se abrirá desde la navegación principal.");
   };
 
   const openReportHistory = () => {
@@ -775,7 +775,7 @@ export default function MapScreen({
 
     Alert.alert(
       "Historial de reportes",
-      "Esta seccion se abrira desde la navegacion principal."
+      "Esta sección se abrirá desde la navegación principal."
     );
   };
 
@@ -789,7 +789,7 @@ export default function MapScreen({
 
     Alert.alert(
       "Lugares guardados",
-      "Esta seccion se abrira desde la navegacion principal."
+      "Esta sección se abrirá desde la navegación principal."
     );
   };
 
@@ -802,7 +802,7 @@ export default function MapScreen({
       console.error(error);
       Alert.alert(
         "Error",
-        error instanceof Error ? error.message : "No se pudo cerrar sesion."
+        error instanceof Error ? error.message : "No se pudo cerrar sesión."
       );
     }
   };
@@ -919,8 +919,8 @@ export default function MapScreen({
       Alert.alert(
         saved ? "Lugar guardado" : "Guardado actualizado",
         saved
-          ? `${selectedPlace.name} se agrego a tus lugares guardados.`
-          : `${selectedPlace.name} se quito de tus lugares guardados.`
+          ? `${selectedPlace.name} se agregó a tus lugares guardados.`
+          : `${selectedPlace.name} se quitó de tus lugares guardados.`
       );
     } catch (error) {
       console.error(error);
@@ -938,7 +938,7 @@ export default function MapScreen({
       return;
     }
 
-    Alert.alert("Reseña", "Esta pantalla se abrira desde la navegacion principal.");
+    Alert.alert("Reseña", "Esta pantalla se abrirá desde la navegación principal.");
   };
 
   const openPlaceReviewsModal = () => {
@@ -1016,7 +1016,7 @@ export default function MapScreen({
         : { latitude: PILOT_REGION.latitude, longitude: PILOT_REGION.longitude });
 
     if (!coord) {
-      Alert.alert("Ubicacion no disponible", "Mueve el mapa o toca una zona para agregar el lugar.");
+      Alert.alert("Ubicación no disponible", "Mueve el mapa o toca una zona para agregar el lugar.");
       return;
     }
 
@@ -1060,7 +1060,7 @@ export default function MapScreen({
 
       Alert.alert(
         "Estacionamiento guardado",
-        `${createdPlace.name} ya quedo persistido en la base de datos.`
+        `${createdPlace.name} ya está disponible en el mapa.`
       );
     } catch (e) {
       console.error(e);
@@ -1101,7 +1101,7 @@ export default function MapScreen({
         null;
 
       if (!currentCoord) {
-        Alert.alert("Ubicacion requerida", "Activa tu ubicacion para enviar un reporte.");
+        Alert.alert("Ubicación requerida", "Activa tu ubicación para enviar un reporte.");
         return;
       }
 
@@ -1114,7 +1114,7 @@ export default function MapScreen({
       if (distance > REPORT_RADIUS_METERS) {
         Alert.alert(
           "Muy lejos para reportar",
-          `Debes estar a menos de ${REPORT_RADIUS_METERS} m del lugar. Estas a ${Math.round(distance)} m.`
+          `Debes estar a menos de ${REPORT_RADIUS_METERS} m del lugar. Estás a ${Math.round(distance)} m.`
         );
         return;
       }
@@ -1217,7 +1217,7 @@ export default function MapScreen({
       console.error(error);
       Alert.alert(
         "Error",
-        error instanceof Error ? error.message : "No se pudo registrar la reaccion."
+        error instanceof Error ? error.message : "No se pudo registrar la reacción."
       );
     } finally {
       setReactingReportId(null);
@@ -1242,15 +1242,15 @@ export default function MapScreen({
       }
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "No se pudo abrir la navegacion.");
+      Alert.alert("Error", "No se pudo abrir la navegación.");
     }
   };
 
   if (permission === "denied") {
     return (
       <View style={styles.center}>
-        <Text style={styles.title}>Permiso de ubicacion requerido</Text>
-        <Text style={styles.subtitle}>Activa ubicacion para ver estacionamientos cerca de ti.</Text>
+        <Text style={styles.title}>Permiso de ubicación requerido</Text>
+        <Text style={styles.subtitle}>Activa la ubicación para ver estacionamientos cerca de ti.</Text>
       </View>
     );
   }
@@ -1306,7 +1306,7 @@ export default function MapScreen({
           <Marker
             coordinate={draftPlaceCoord}
             title="Nuevo estacionamiento"
-            description="Ubicacion propuesta"
+            description="Ubicación propuesta"
             pinColor="#0ea5e9"
           />
         ) : null}
@@ -1348,7 +1348,12 @@ export default function MapScreen({
       <View style={styles.fabColumn}>
         <Pressable
           style={[styles.fab, styles.fabDark]}
-          onPress={() => Alert.alert("Proximo paso", "Aqui podemos poner acceso rapido para validar o reportar incidencias.")}
+          onPress={() =>
+            Alert.alert(
+              "Ayuda rápida",
+              "Toca un marcador para validar su estado o usa + para registrar un nuevo estacionamiento."
+            )
+          }
         >
           <Text style={styles.fabDarkIcon}>!</Text>
         </Pressable>
@@ -1391,7 +1396,7 @@ export default function MapScreen({
           <View style={styles.sheetHeaderBlock}>
             <Text style={styles.sheetTitle}>Agregar estacionamiento</Text>
             <Text style={styles.sheetSubtitle}>
-              Toca el mapa para fijar ubicacion y completa los datos clave.
+              Toca el mapa para fijar la ubicación y completa los datos clave.
             </Text>
           </View>
           <BottomSheetScrollView
@@ -1404,7 +1409,8 @@ export default function MapScreen({
             <View style={styles.sheetHeroDraft}>
               <Text style={styles.sheetHeroDraftLabel}>Nuevo punto comunitario</Text>
               <Text style={styles.sheetHeroDraftMeta}>
-                Guardamos nombre, coordenadas, costo y capacidad estimada para que el lugar quede disponible para todos.
+                Guardamos nombre, coordenadas, costo estimado y capacidad para que
+                el lugar aparezca en el mapa y mejore la experiencia de búsqueda.
               </Text>
             </View>
 
@@ -1429,20 +1435,20 @@ export default function MapScreen({
                 onChangeText={(value) =>
                   setNewPlaceDraft((prev) => ({ ...prev, address: value }))
                 }
-                placeholder="Direccion o referencia"
+                placeholder="Dirección o referencia"
                 placeholderTextColor="#94a3b8"
                 style={styles.textField}
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.inputLabel}>Descripcion</Text>
+              <Text style={styles.inputLabel}>Descripción</Text>
               <TextInput
                 value={newPlaceDraft.description}
                 onChangeText={(value) =>
                   setNewPlaceDraft((prev) => ({ ...prev, description: value }))
                 }
-                placeholder="Descripcion breve del lugar"
+                placeholder="Descripción breve del lugar"
                 placeholderTextColor="#94a3b8"
                 style={[styles.textField, styles.textFieldMultiline]}
                 multiline
@@ -1452,7 +1458,7 @@ export default function MapScreen({
             <View style={styles.formGroup}>
               <Text style={styles.inputLabel}>Horario semanal</Text>
               <Text style={styles.formHelperText}>
-                Usa formato HH:MM. Si un dia no abre, marcalo como cerrado.
+                Usa formato HH:MM. Si un día no abre, márcalo como cerrado.
               </Text>
               <View style={styles.scheduleCard}>
                 {PARKING_WEEKDAYS.map((day) => {
@@ -1484,7 +1490,7 @@ export default function MapScreen({
 
                       {dayDraft.isClosed ? (
                         <Text style={styles.scheduleClosedHint}>
-                          Sin atencion ese dia.
+                          No abre ese día.
                         </Text>
                       ) : (
                         <View style={styles.formRow}>
@@ -1530,7 +1536,7 @@ export default function MapScreen({
 
             <View style={styles.formRow}>
               <View style={styles.formColumn}>
-                <Text style={styles.inputLabel}>Costo min/h</Text>
+                <Text style={styles.inputLabel}>Costo mín./h</Text>
                 <TextInput
                   value={newPlaceDraft.hourlyCostMin}
                   onChangeText={(value) =>
@@ -1543,7 +1549,7 @@ export default function MapScreen({
                 />
               </View>
               <View style={styles.formColumn}>
-                <Text style={styles.inputLabel}>Costo max/h</Text>
+                <Text style={styles.inputLabel}>Costo máx./h</Text>
                 <TextInput
                   value={newPlaceDraft.hourlyCostMax}
                   onChangeText={(value) =>
@@ -1572,7 +1578,7 @@ export default function MapScreen({
 
             <View style={styles.formRow}>
               <View style={styles.formColumn}>
-                <Text style={styles.inputLabel}>Capacidad min</Text>
+                <Text style={styles.inputLabel}>Capacidad mín.</Text>
                 <TextInput
                   value={newPlaceDraft.capacityMin}
                   onChangeText={(value) =>
@@ -1585,7 +1591,7 @@ export default function MapScreen({
                 />
               </View>
               <View style={styles.formColumn}>
-                <Text style={styles.inputLabel}>Capacidad max</Text>
+                <Text style={styles.inputLabel}>Capacidad máx.</Text>
                 <TextInput
                   value={newPlaceDraft.capacityMax}
                   onChangeText={(value) =>
@@ -1603,7 +1609,7 @@ export default function MapScreen({
               Coordenadas a guardar:{" "}
               {(draftPlaceCoord ?? region)
                 ? `${(draftPlaceCoord ?? region)!.latitude.toFixed(5)}, ${(draftPlaceCoord ?? region)!.longitude.toFixed(5)}`
-                : "mueve el mapa para fijarlas"}
+                : "mueve el mapa para definirlas"}
             </Text>
             <View style={styles.sheetActions}>
               <Pressable style={[styles.actionBtn, styles.actionGhost]} onPress={onCancelAddPlace}>
@@ -1629,13 +1635,14 @@ export default function MapScreen({
             {reportingPlace.name}
           </Text>
           <Text style={styles.sheetMeta}>
-            Solo puedes reportar si estas cerca del lugar ({REPORT_RADIUS_METERS} m max).
+            Solo puedes reportar si estás cerca del lugar (máx. {REPORT_RADIUS_METERS} m).
           </Text>
 
           <View style={styles.validationPanel}>
-            <Text style={styles.validationTitle}>Validar estacionamiento</Text>
+            <Text style={styles.validationTitle}>Antes de reportar</Text>
             <Text style={styles.validationBody}>
-              Este bloque esta pensado para futuras fotos, notas y confirmaciones de la comunidad.
+              Tu reporte ayuda a mantener el estado del estacionamiento más
+              confiable para toda la comunidad.
             </Text>
           </View>
 
@@ -1682,13 +1689,15 @@ export default function MapScreen({
         >
           <View style={styles.placeSheetHeader}>
             <View style={styles.placeHeaderCopy}>
-              <Text style={styles.sheetEyebrow}>Aguascalientes piloto</Text>
+              <Text style={styles.sheetEyebrow}>Piloto en Aguascalientes</Text>
               <Text style={styles.placeTitle} numberOfLines={isPlaceSheetExpanded ? 2 : 1}>
                 {selectedPlace.name}
               </Text>
               <Text style={styles.placeSubtitle}>
-                {selectedPlace.source === "remote" ? "Ubicacion validada por comunidad" : "Punto agregado en este dispositivo"}
-                {isLoadingPlaces ? " . Cargando..." : ""}
+                {selectedPlace.source === "remote"
+                  ? "Ubicación validada por la comunidad"
+                  : "Punto agregado desde este dispositivo"}
+                {isLoadingPlaces ? " · Cargando..." : ""}
               </Text>
             </View>
 
@@ -1721,7 +1730,7 @@ export default function MapScreen({
               </View>
               <Text style={styles.placeHeroTitle}>{getStatusSupportLabel(selectedPlace.status)}</Text>
               <Text style={styles.placeHeroMeta}>
-                {getUpdatedLabel(selectedPlace)} . {getStatusConfidenceLabel(selectedPlace)}
+                {getUpdatedLabel(selectedPlace)} · {getStatusConfidenceLabel(selectedPlace)}
               </Text>
             </View>
 
@@ -1731,8 +1740,8 @@ export default function MapScreen({
                 onPress={() => onNavigatePress(selectedPlace)}
               >
                 <Text style={[styles.primaryActionEmoji, styles.primaryActionEmojiOnDark]}>➜</Text>
-                <Text style={[styles.primaryActionTitle, styles.primaryActionTitleOnDark]}>Como llegar</Text>
-                <Text style={[styles.primaryActionBody, styles.primaryActionBodyOnDark]}>Abrir navegacion externa</Text>
+                <Text style={[styles.primaryActionTitle, styles.primaryActionTitleOnDark]}>Cómo llegar</Text>
+                <Text style={[styles.primaryActionBody, styles.primaryActionBodyOnDark]}>Abrir navegación externa</Text>
               </Pressable>
 
               <Pressable
@@ -1742,7 +1751,7 @@ export default function MapScreen({
               >
                 <Text style={[styles.primaryActionEmoji, styles.primaryActionEmojiSoft]}>✓</Text>
                 <Text style={styles.primaryActionTitle}>Validar</Text>
-                <Text style={styles.primaryActionBody}>Confirmar si hay espacio</Text>
+                <Text style={styles.primaryActionBody}>Confirmar si aún hay espacio</Text>
               </Pressable>
             </View>
 
@@ -1752,7 +1761,7 @@ export default function MapScreen({
                 style={[styles.detailTile, styles.detailTilePressable]}
                 onPress={openPlaceReviewsModal}
               >
-                <Text style={styles.detailLabel}>Calificacion</Text>
+                <Text style={styles.detailLabel}>Calificación</Text>
                 <View style={styles.ratingBadgeRow}>
                   <Text style={styles.detailValue}>
                     {formatRatingBadgeSummary(selectedPlace)}
@@ -1761,8 +1770,8 @@ export default function MapScreen({
                 </View>
                 <Text style={styles.detailHint}>
                   {selectedPlace.ratingCount > 0
-                    ? "Toca para ver reseñas"
-                    : "Toca para abrir las reseñas"}
+                    ? "Toca para ver las reseñas"
+                    : "Toca para leer o escribir una reseña"}
                 </Text>
               </Pressable>
               <View style={styles.detailTile}>
@@ -1787,9 +1796,9 @@ export default function MapScreen({
                 </Text>
               </View>
               <View style={styles.detailTile}>
-                <Text style={styles.detailLabel}>Refresh sugerido</Text>
+                <Text style={styles.detailLabel}>Actualización sugerida</Text>
                 <Text style={styles.detailValue}>{getRefreshWindowLabel(selectedPlace)}</Text>
-                <Text style={styles.detailHint}>Ajustado segun frescura y consenso</Text>
+                <Text style={styles.detailHint}>Ajustado según frescura y consenso</Text>
               </View>
             </View>
 
@@ -1863,7 +1872,7 @@ export default function MapScreen({
                       </Text>
                       <Text style={styles.historySubtitle}>
                         {getElapsedLabel(report.createdAt) ?? "Reciente"}
-                        {report.note ? ` . ${report.note}` : ""}
+                        {report.note ? ` · ${report.note}` : ""}
                       </Text>
                       <Text style={styles.historyReactionSummary}>
                         {getReportReactionLabel(report)}
@@ -1901,7 +1910,7 @@ export default function MapScreen({
                 ))
               ) : (
                 <Text style={styles.menuEmptyText}>
-                  Aun no hay reportes recientes para este estacionamiento.
+                  Aún no hay reportes recientes para este estacionamiento.
                 </Text>
               )}
             </View>
@@ -1910,7 +1919,7 @@ export default function MapScreen({
               <Text style={styles.sectionTitle}>Sobre este lugar</Text>
               <Text style={styles.infoBody}>
                 {selectedPlace.description ??
-                  "Lugar comunitario dentro del piloto de Aguascalientes."}
+                  "Estacionamiento comunitario dentro de la zona piloto de Aguascalientes."}
                 {"\n\n"}Referencia: {selectedPlace.address ?? "Por validar"}.
                 {"\n"}Coordenadas: {selectedPlace.latitude.toFixed(5)},{" "}
                 {selectedPlace.longitude.toFixed(5)}.
@@ -2041,7 +2050,7 @@ export default function MapScreen({
               ) : (
                 <View style={styles.reviewsEmptyState}>
                   <Text style={styles.reviewsEmptyTitle}>
-                    Aun no hay reseñas para este estacionamiento.
+                    Aún no hay reseñas para este estacionamiento.
                   </Text>
                   <Text style={styles.reviewsEmptyBody}>
                     Usa &quot;Escribir reseña&quot; para compartir la primera experiencia
@@ -2093,13 +2102,13 @@ export default function MapScreen({
                   <Text style={styles.searchChipText}>Plazas</Text>
                 </View>
                 <View style={styles.searchChip}>
-                  <Text style={styles.searchChipText}>Publicos</Text>
+                  <Text style={styles.searchChipText}>Públicos</Text>
                 </View>
               </View>
 
               {!searchQuery.trim() ? (
                 <View style={styles.recentSection}>
-                  <Text style={styles.searchSectionTitle}>Busquedas recientes</Text>
+                  <Text style={styles.searchSectionTitle}>Búsquedas recientes</Text>
                   {recentSearches.map((item) => (
                     <Pressable
                       key={item}
@@ -2134,7 +2143,7 @@ export default function MapScreen({
                       <View style={styles.resultCopy}>
                         <Text style={styles.resultTitle}>{place.name}</Text>
                         <Text style={styles.resultSubtitle}>
-                          {statusToLabel(place.status)} . {getUpdatedLabel(place)}
+                          {statusToLabel(place.status)} · {getUpdatedLabel(place)}
                         </Text>
                       </View>
                       <Text style={styles.resultAction}>Ver</Text>
@@ -2180,7 +2189,7 @@ export default function MapScreen({
                 style={styles.menuPrimaryBtn}
                 onPress={handleSignOutPress}
               >
-                <Text style={styles.menuPrimaryBtnText}>Cerrar sesion</Text>
+                <Text style={styles.menuPrimaryBtnText}>Cerrar sesión</Text>
               </Pressable>
             </View>
 
@@ -2199,7 +2208,7 @@ export default function MapScreen({
                   <Text style={styles.menuActionIcon}>◐</Text>
                   <View style={styles.menuActionCopy}>
                     <Text style={styles.menuActionTitle}>Perfil y tema</Text>
-                    <Text style={styles.menuActionSubtitle}>Edita tu nombre visible, telefono y estilo</Text>
+                    <Text style={styles.menuActionSubtitle}>Edita tu nombre visible, teléfono y estilo</Text>
                   </View>
                 </Pressable>
               </View>
@@ -2214,7 +2223,7 @@ export default function MapScreen({
                   <Text style={styles.menuActionIcon}>✓</Text>
                   <View style={styles.menuActionCopy}>
                     <Text style={styles.menuActionTitle}>Historial de reportes</Text>
-                    <Text style={styles.menuActionSubtitle}>Tus ultimas validaciones y estados enviados</Text>
+                    <Text style={styles.menuActionSubtitle}>Tus últimas validaciones y estados enviados</Text>
                   </View>
                 </Pressable>
 
@@ -2226,7 +2235,7 @@ export default function MapScreen({
                   <Text style={styles.menuActionIcon}>★</Text>
                   <View style={styles.menuActionCopy}>
                     <Text style={styles.menuActionTitle}>Lugares guardados</Text>
-                    <Text style={styles.menuActionSubtitle}>Acceso rapido a tus estacionamientos frecuentes</Text>
+                    <Text style={styles.menuActionSubtitle}>Acceso rápido a tus estacionamientos frecuentes</Text>
                   </View>
                 </Pressable>
               </View>
@@ -2260,7 +2269,7 @@ export default function MapScreen({
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.menuEmptyText}>Aun no hay reportes recientes.</Text>
+                  <Text style={styles.menuEmptyText}>Aún no hay reportes recientes.</Text>
                 )}
               </View>
 
@@ -2274,7 +2283,7 @@ export default function MapScreen({
                   <Text style={styles.menuActionIcon}>⚙</Text>
                   <View style={styles.menuActionCopy}>
                     <Text style={styles.menuActionTitle}>Privacidad y legal</Text>
-                    <Text style={styles.menuActionSubtitle}>Ubicacion, uso de datos y alcance de la demo</Text>
+                    <Text style={styles.menuActionSubtitle}>Ubicación, uso de datos y alcance del servicio</Text>
                   </View>
                 </Pressable>
               </View>

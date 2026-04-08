@@ -197,7 +197,7 @@ export default function ProfileSettingsScreen({
       if (selectedLocalAvatar) {
         if (!isSupabaseConfigured) {
           throw new Error(
-            "Para subir una foto desde tu dispositivo necesitas configurar Supabase y el bucket de avatares."
+            "Para subir una foto desde tu dispositivo, necesitas configurar Supabase y el bucket de avatares."
           );
         }
 
@@ -235,7 +235,7 @@ export default function ProfileSettingsScreen({
         profileSavedRemotely ? "Perfil actualizado" : "Tema actualizado",
         profileSavedRemotely
           ? "Tus datos y tu estilo ya quedaron guardados."
-          : "Tu tema quedo guardado localmente. Para guardar datos del perfil necesitas configurar Supabase."
+          : "Tu tema quedó guardado localmente. Para guardar datos del perfil, necesitas configurar Supabase."
       );
     } catch (error) {
       console.error(error);
@@ -298,7 +298,7 @@ export default function ProfileSettingsScreen({
             </View>
             <Text style={styles.heroTitle}>{profilePreviewName}</Text>
             <Text style={styles.heroBody}>
-              Ajusta como apareces dentro de ParkPulse y elige el estilo visual con el
+              Ajusta cómo apareces dentro de ParkPulse y elige el estilo visual con el
               que quieres personalizar tu cuenta.
             </Text>
 
@@ -327,7 +327,7 @@ export default function ProfileSettingsScreen({
             <Text style={[styles.cardBody, { color: selectedTheme.textMuted }]}>
               {isSupabaseConfigured
                 ? "Estos datos se guardan en tu perfil sincronizado."
-                : "Sin Supabase configurado solo podremos guardar el tema localmente."}
+                : "Sin Supabase configurado, solo podremos guardar el tema localmente."}
             </Text>
 
             <View style={styles.fieldGroup}>
@@ -345,7 +345,7 @@ export default function ProfileSettingsScreen({
                 </Text>
               </View>
               <Text style={[styles.helperText, { color: selectedTheme.textMuted }]}>
-                El correo sigue viniendo desde autenticacion.
+                El correo proviene de tu autenticación.
               </Text>
             </View>
 
@@ -357,7 +357,7 @@ export default function ProfileSettingsScreen({
                 testID="profile-preferred-name-input"
                 value={formState.preferredName}
                 onChangeText={handleChange("preferredName")}
-                placeholder="Como quieres que te vea la comunidad"
+                placeholder="Cómo quieres que te vea la comunidad"
                 placeholderTextColor="#94a3b8"
                 style={[
                   styles.textField,
@@ -385,7 +385,7 @@ export default function ProfileSettingsScreen({
 
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, { color: selectedTheme.textMuted }]}>
-                Telefono
+                Teléfono
               </Text>
               <TextInput
                 testID="profile-phone-input"
@@ -403,7 +403,7 @@ export default function ProfileSettingsScreen({
 
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, { color: selectedTheme.textMuted }]}>
-                Avatar URL
+                URL del avatar
               </Text>
               <View style={styles.avatarActionsRow}>
                 <Pressable

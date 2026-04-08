@@ -88,11 +88,11 @@ export function normalizeSignInInput(input: SignInInput) {
   const password = readPassword(input.password);
 
   if (!email || !validateEmail(email)) {
-    throw new Error("Ingresa un correo valido.");
+    throw new Error("Ingresa un correo válido.");
   }
 
   if (!password) {
-    throw new Error("La contrasena es obligatoria.");
+    throw new Error("La contraseña es obligatoria.");
   }
 
   return {
@@ -112,16 +112,16 @@ export function normalizeSignUpInput(input: SignUpInput) {
   }
 
   if (!email || !validateEmail(email)) {
-    throw new Error("Ingresa un correo valido.");
+    throw new Error("Ingresa un correo válido.");
   }
 
   if (!validatePhone(phone)) {
-    throw new Error("Ingresa un telefono valido.");
+    throw new Error("Ingresa un teléfono válido.");
   }
 
   if (!validatePassword(password)) {
     throw new Error(
-      "La contrasena debe tener 8 a 20 caracteres, una mayuscula, un numero y un signo."
+      "La contraseña debe tener de 8 a 20 caracteres, una mayúscula, un número y un signo."
     );
   }
 
@@ -181,7 +181,7 @@ export async function signInWithPassword(
 
   const user = mapAuthUser(data.user);
   if (!user) {
-    throw new Error("No se pudo iniciar sesion.");
+    throw new Error("No se pudo iniciar sesión.");
   }
 
   return user;

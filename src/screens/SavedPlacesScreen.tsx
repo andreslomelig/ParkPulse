@@ -142,7 +142,7 @@ export default function SavedPlacesScreen({
       return;
     }
 
-    Alert.alert("Mapa", "Este lugar se abrira desde el mapa principal.");
+    Alert.alert("Mapa", "Este lugar se abrirá desde el mapa principal.");
   };
 
   const handleRemovePlace = async (place: ParkingPlace) => {
@@ -185,8 +185,8 @@ export default function SavedPlacesScreen({
           <Text style={styles.eyebrow}>Tus favoritos</Text>
           <Text style={styles.title}>Lugares guardados</Text>
           <Text style={styles.body}>
-            Consulta rapido los estacionamientos que apartaste para volver a ellos
-            desde el mapa principal.
+            Consulta rápidamente los estacionamientos que guardaste para volver a
+            ellos desde el mapa principal.
           </Text>
 
           <View style={styles.summaryGrid}>
@@ -214,7 +214,7 @@ export default function SavedPlacesScreen({
           <View style={styles.heroFooter}>
             <Text style={styles.heroFooterText}>
               {summary.latestUpdateAt
-                ? `Ultima actualizacion ${getElapsedLabel(summary.latestUpdateAt)}`
+                ? `Última actualización ${getElapsedLabel(summary.latestUpdateAt)}`
                 : "Tus guardados se sincronizan con los datos del mapa."}
             </Text>
             <Pressable
@@ -237,15 +237,16 @@ export default function SavedPlacesScreen({
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Cargando guardados...</Text>
               <Text style={styles.emptyBody}>
-                Estamos recuperando los lugares que marcaste para volver rapido a ellos.
+                Estamos recuperando los lugares que marcaste para volver rápidamente
+                a ellos.
               </Text>
             </View>
           ) : savedPlaces.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Todavia no tienes lugares guardados.</Text>
+              <Text style={styles.emptyTitle}>Todavía no tienes lugares guardados.</Text>
               <Text style={styles.emptyBody}>
                 Cuando toques &quot;Guardar&quot; desde la ficha de un estacionamiento,
-                lo veras aqui con su estado mas reciente.
+                lo verás aquí con su estado más reciente.
               </Text>
             </View>
           ) : (
@@ -271,7 +272,7 @@ export default function SavedPlacesScreen({
                 </View>
 
                 <Text style={styles.placeName}>{place.name}</Text>
-                <Text style={styles.placeAddress}>{place.address ?? "Direccion por validar"}</Text>
+                <Text style={styles.placeAddress}>{place.address ?? "Dirección por validar"}</Text>
 
                 <View style={styles.metaGrid}>
                   <View style={styles.metaCard}>

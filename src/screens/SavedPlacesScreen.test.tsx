@@ -105,7 +105,7 @@ describe("SavedPlacesScreen", () => {
     const screen = render(<SavedPlacesScreen currentUser={currentUser} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Todavia no tienes lugares guardados.")).toBeTruthy();
+      expect(screen.getByText("Todavía no tienes lugares guardados.")).toBeTruthy();
     });
   });
 
@@ -140,7 +140,7 @@ describe("SavedPlacesScreen", () => {
 
     await waitFor(() => {
       expect(removeSavedPlaceForUser).toHaveBeenCalledWith("user-1", "place-1");
-      expect(screen.getByText("Todavia no tienes lugares guardados.")).toBeTruthy();
+      expect(screen.getByText("Todavía no tienes lugares guardados.")).toBeTruthy();
     });
   });
 });

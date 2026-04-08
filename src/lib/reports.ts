@@ -94,7 +94,7 @@ const fallbackRecentReports: ParkingReport[] = [
     placeId: "fallback-1",
     placeName: "Plaza Patria",
     status: "available",
-    note: "Movimiento constante, aun hay lugares disponibles.",
+    note: "Movimiento constante; aún hay lugares disponibles.",
     createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
     expiresAt: new Date(Date.now() + 7 * 60 * 1000).toISOString(),
     reportedDistanceMeters: 30,
@@ -109,7 +109,7 @@ const fallbackRecentReports: ParkingReport[] = [
     placeId: "fallback-2",
     placeName: "Estadio Victoria",
     status: "full",
-    note: "Se lleno por evento esta tarde.",
+    note: "Se llenó por un evento esta tarde.",
     createdAt: new Date(Date.now() - 21 * 60 * 1000).toISOString(),
     expiresAt: new Date(Date.now() + 9 * 60 * 1000).toISOString(),
     reportedDistanceMeters: 42,
@@ -134,15 +134,15 @@ export function normalizeSubmitParkingReportInput(
   const rating = normalizeRatingValue(input.rating);
 
   if (!placeId || !placeName) {
-    throw new Error("El reporte necesita un estacionamiento valido.");
+    throw new Error("El reporte necesita un estacionamiento válido.");
   }
 
   if (!status) {
-    throw new Error("El estado del reporte es invalido.");
+    throw new Error("El estado del reporte es inválido.");
   }
 
   if (input.rating !== null && input.rating !== undefined && rating === null) {
-    throw new Error("La calificacion del reporte debe estar entre 1 y 5.");
+    throw new Error("La calificación del reporte debe estar entre 1 y 5.");
   }
 
   return {
@@ -166,11 +166,11 @@ export function normalizeReactToParkingReportInput(
   const reaction = normalizeParkingReportReaction(input.reaction);
 
   if (!reportId) {
-    throw new Error("La reaccion necesita un reporte valido.");
+    throw new Error("La reacción necesita un reporte válido.");
   }
 
   if (!reaction) {
-    throw new Error("La reaccion del reporte es invalida.");
+    throw new Error("La reacción del reporte es inválida.");
   }
 
   return {

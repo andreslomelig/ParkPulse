@@ -36,14 +36,14 @@ describe("ratings", () => {
         placeId: "",
         rating: 5,
       })
-    ).toThrow("La calificacion necesita un estacionamiento valido.");
+    ).toThrow("La calificación necesita un estacionamiento válido.");
 
     expect(() =>
       normalizeSubmitParkingRatingInput({
         placeId: "place-1",
         rating: 0,
       })
-    ).toThrow("La calificacion debe estar entre 1 y 5.");
+    ).toThrow("La calificación debe estar entre 1 y 5.");
   });
 
   it("sends ratings to the rpc endpoint", async () => {
@@ -150,7 +150,7 @@ describe("ratings", () => {
         placeId: "place-1",
         rating: 4,
       })
-    ).rejects.toThrow("No se pudo interpretar la calificacion del estacionamiento.");
+    ).rejects.toThrow("No se pudo interpretar la calificación del estacionamiento.");
   });
 
   it("surfaces rpc and parsing errors when rating a place", async () => {
@@ -181,6 +181,6 @@ describe("ratings", () => {
         placeId: "place-1",
         rating: 5,
       })
-    ).rejects.toThrow("No se pudo interpretar la calificacion del estacionamiento.");
+    ).rejects.toThrow("No se pudo interpretar la calificación del estacionamiento.");
   });
 });

@@ -230,7 +230,7 @@ describe("MapScreen", () => {
         placeId: "fallback-1",
         placeName: "Centro - Plaza Patria",
         rating: 5,
-        comment: "Excelente ubicacion y maniobra sencilla.",
+        comment: "Excelente ubicación y maniobra sencilla.",
         createdAt: "2026-03-18T18:10:00.000Z",
         updatedAt: "2026-03-18T18:15:00.000Z",
         reviewerUserId: "user-2",
@@ -476,7 +476,7 @@ describe("MapScreen", () => {
     await waitFor(() => {
       expect(screen.getByText("Reseñas")).toBeTruthy();
       expect(screen.getByText("Grace Hopper")).toBeTruthy();
-      expect(screen.getByText("Excelente ubicacion y maniobra sencilla.")).toBeTruthy();
+      expect(screen.getByText("Excelente ubicación y maniobra sencilla.")).toBeTruthy();
     });
   });
 
@@ -524,8 +524,12 @@ describe("MapScreen", () => {
       expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
     });
 
+    const confirmButton = await screen.findByTestId(
+      "confirm-report-remote-place-report-1"
+    );
+
     await act(async () => {
-      fireEvent.press(screen.getByTestId("confirm-report-remote-place-report-1"));
+      fireEvent.press(confirmButton);
     });
 
     expect(reactToParkingReport).toHaveBeenCalledWith({

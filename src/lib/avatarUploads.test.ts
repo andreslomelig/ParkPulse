@@ -58,7 +58,7 @@ describe("avatarUploads", () => {
     ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: false });
 
     await expect(pickProfileAvatarImage()).rejects.toThrow(
-      "Debes permitir acceso a tus fotos para cambiar tu perfil."
+      "Debes permitir el acceso a tus fotos para actualizar tu perfil."
     );
   });
 
