@@ -1,6 +1,6 @@
 import React from "react";
 import { Alert } from "react-native";
-import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react-native";
 import * as Location from "expo-location";
 import BottomSheet from "@gorhom/bottom-sheet";
 import MapScreen from "./MapScreen";
@@ -282,6 +282,90 @@ describe("MapScreen", () => {
     });
   });
 
+  it("sorts matching search results by proximity", async () => {
+    (fetchPlaces as jest.Mock).mockResolvedValueOnce([
+      {
+        ...basePlaces[0],
+        id: "search-far",
+        name: "Centro - Lejano",
+        latitude: 21.845,
+        longitude: -102.332,
+      },
+      {
+        ...basePlaces[1],
+        id: "search-mid",
+        name: "Centro - Intermedio",
+        latitude: 21.874,
+        longitude: -102.297,
+      },
+      {
+        ...basePlaces[0],
+        id: "search-near",
+        name: "Centro - Cercano",
+        latitude: 21.8826,
+        longitude: -102.2824,
+      },
+    ]);
+
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Lejano")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Buscar estacionamiento"));
+
+    const searchInput = await waitFor(() =>
+      screen.getByPlaceholderText("Buscar zona, plaza o estacionamiento")
+    );
+
+    fireEvent.changeText(searchInput, "Centro");
+
+    const resultRows = await waitFor(() => screen.getAllByTestId("search-result-row"));
+
+    expect(within(resultRows[0]).getByText("Centro - Cercano")).toBeTruthy();
+    expect(within(resultRows[1]).getByText("Centro - Intermedio")).toBeTruthy();
+    expect(within(resultRows[2]).getByText("Centro - Lejano")).toBeTruthy();
+  });
+
+  it("shows approximate search distances in meters and kilometers", async () => {
+    (fetchPlaces as jest.Mock).mockResolvedValueOnce([
+      {
+        ...basePlaces[0],
+        id: "search-meters",
+        name: "Centro - A unos metros",
+        latitude: 21.88234,
+        longitude: -102.28229,
+      },
+      {
+        ...basePlaces[1],
+        id: "search-kilometers",
+        name: "Centro - A un kilometro",
+        latitude: 21.89234,
+        longitude: -102.28259,
+      },
+    ]);
+
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - A unos metros")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Buscar estacionamiento"));
+
+    const searchInput = await waitFor(() =>
+      screen.getByPlaceholderText("Buscar zona, plaza o estacionamiento")
+    );
+
+    fireEvent.changeText(searchInput, "Centro");
+
+    const resultRows = await waitFor(() => screen.getAllByTestId("search-result-row"));
+
+    expect(within(resultRows[0]).getByText("31 m")).toBeTruthy();
+    expect(within(resultRows[1]).getByText("1.1 km")).toBeTruthy();
+  });
+
   it("refreshes map data from the floating button", async () => {
     (fetchRecentReports as jest.Mock)
       .mockResolvedValueOnce([
@@ -333,6 +417,21 @@ describe("MapScreen", () => {
     await waitFor(() => {
       expect(screen.getByText("Historial actualizado")).toBeTruthy();
     });
+  });
+
+  it("opens the map guide from the info action", async () => {
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Centro - Plaza Patria")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("open-map-guide-button"));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      "Guia del mapa",
+      expect.stringContaining("Usa Validar")
+    );
   });
 
   it("opens the menu shell and shows recent report history", async () => {
@@ -440,6 +539,8 @@ describe("MapScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Reportar estado")).toBeTruthy();
+      expect(screen.getByText("Estado visible ahora")).toBeTruthy();
+      expect(screen.getByText("Que registraremos")).toBeTruthy();
       expect(screen.getByTestId("report-status-available")).toBeTruthy();
       expect(screen.getByTestId("report-status-full")).toBeTruthy();
       expect(screen.getByTestId("report-status-closed")).toBeTruthy();

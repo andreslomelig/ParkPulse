@@ -373,6 +373,53 @@ function distanceInMeters(from: LatLng, to: LatLng) {
   return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function formatApproxDistance(distanceMeters: number) {
+  const roundedMeters = Math.round(distanceMeters);
+  if (roundedMeters < 1000) return `${roundedMeters} m`;
+
+  const kilometers = distanceMeters / 1000;
+  const formattedKilometers =
+    kilometers >= 10 ? Math.round(kilometers).toString() : kilometers.toFixed(1);
+
+  return `${formattedKilometers.replace(/\.0$/, "")} km`;
+}
+
+function sortPlacesByProximity(
+  places: ParkingPlace[],
+  origin: LatLng | null
+) {
+  if (!origin) return places.slice();
+
+  return places
+    .map((place, index) => ({
+      place,
+      index,
+      distanceMeters: distanceInMeters(origin, {
+        latitude: place.latitude,
+        longitude: place.longitude,
+      }),
+    }))
+    .sort(
+      (left, right) =>
+        left.distanceMeters - right.distanceMeters || left.index - right.index
+    )
+    .map(({ place }) => place);
+}
+
+function getPlaceDistanceLabel(
+  origin: LatLng | null,
+  place: ParkingPlace
+) {
+  if (!origin) return null;
+
+  return formatApproxDistance(
+    distanceInMeters(origin, {
+      latitude: place.latitude,
+      longitude: place.longitude,
+    })
+  );
+}
+
 export default function MapScreen({
   currentUser,
   onOpenProfileSettings,
@@ -628,15 +675,34 @@ export default function MapScreen({
     return mapReadyPlaces.find((place) => place.id === reportingPlaceId) ?? null;
   }, [mapReadyPlaces, reportingPlaceId]);
 
+  const searchOrigin = useMemo<LatLng | null>(() => {
+    return userCoord ??
+      (region
+        ? {
+            latitude: region.latitude,
+            longitude: region.longitude,
+          }
+        : null);
+  }, [region, userCoord]);
+
   const filteredPlaces = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) return mapReadyPlaces.slice(0, 8);
+    const matchingPlaces = normalizedQuery
+      ? mapReadyPlaces.filter((place) => {
+          const haystack = `${place.name} ${statusToLabel(place.status)}`.toLowerCase();
+          return haystack.includes(normalizedQuery);
+        })
+      : mapReadyPlaces;
 
-    return mapReadyPlaces.filter((place) => {
-      const haystack = `${place.name} ${statusToLabel(place.status)}`.toLowerCase();
-      return haystack.includes(normalizedQuery);
-    });
-  }, [mapReadyPlaces, searchQuery]);
+    const proximitySortedPlaces = sortPlacesByProximity(
+      matchingPlaces,
+      searchOrigin
+    );
+
+    return normalizedQuery
+      ? proximitySortedPlaces
+      : proximitySortedPlaces.slice(0, 8);
+  }, [mapReadyPlaces, searchOrigin, searchQuery]);
 
   const isSelectedPlaceSaved = selectedPlace ? savedPlaceIds.includes(selectedPlace.id) : false;
   const adaptiveRefreshSeconds = selectedPlace?.recommendedRefreshSeconds ?? 180;
@@ -1224,6 +1290,17 @@ export default function MapScreen({
     }
   };
 
+  const openMapGuide = () => {
+    Alert.alert(
+      "Guia del mapa",
+      [
+        "Toca un marcador para abrir la ficha completa del estacionamiento.",
+        "Usa Validar solo cuando estes cerca del lugar para mantener el estado confiable.",
+        "Usa + para registrar un nuevo punto y actualiza el mapa cuando quieras refrescar los datos.",
+      ].join("\n\n")
+    );
+  };
+
   const onNavigatePress = async (place: ParkingPlace) => {
     const label = encodeURIComponent(place.name);
     const url =
@@ -1347,15 +1424,11 @@ export default function MapScreen({
 
       <View style={styles.fabColumn}>
         <Pressable
+          testID="open-map-guide-button"
           style={[styles.fab, styles.fabDark]}
-          onPress={() =>
-            Alert.alert(
-              "Ayuda rápida",
-              "Toca un marcador para validar su estado o usa + para registrar un nuevo estacionamiento."
-            )
-          }
+          onPress={openMapGuide}
         >
-          <Text style={styles.fabDarkIcon}>!</Text>
+          <Text style={styles.fabDarkIcon}>i</Text>
         </Pressable>
 
         <Pressable
@@ -1630,21 +1703,55 @@ export default function MapScreen({
       ) : reportingPlace ? (
         <View style={[styles.sheet, styles.sheetExpanded]}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Reportar estado</Text>
-          <Text style={styles.sheetSubtitle} numberOfLines={1}>
-            {reportingPlace.name}
-          </Text>
+          <Text style={styles.sheetEyebrow}>Validacion en sitio</Text>
+          <View style={styles.reportHeaderRow}>
+            <View style={styles.reportHeaderCopy}>
+              <Text style={styles.sheetTitle}>Reportar estado</Text>
+              <Text style={styles.sheetSubtitle} numberOfLines={1}>
+                {reportingPlace.name}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.statusPill,
+                { backgroundColor: `${statusToColor(reportingPlace.status)}22` },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusPillText,
+                  { color: statusToColor(reportingPlace.status) },
+                ]}
+              >
+                {statusToLabel(reportingPlace.status)}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.sheetMeta}>
-            Solo puedes reportar si estás cerca del lugar (máx. {REPORT_RADIUS_METERS} m).
+            Debes estar a {REPORT_RADIUS_METERS} m o menos para validar este lugar.
           </Text>
 
-          <View style={styles.validationPanel}>
-            <Text style={styles.validationTitle}>Antes de reportar</Text>
-            <Text style={styles.validationBody}>
-              Tu reporte ayuda a mantener el estado del estacionamiento más
-              confiable para toda la comunidad.
+          <View style={styles.reportSummaryCard}>
+            <Text style={styles.reportSummaryLabel}>Estado visible ahora</Text>
+            <Text style={styles.reportSummaryTitle}>
+              {getStatusSupportLabel(reportingPlace.status)}
+            </Text>
+            <Text style={styles.reportSummaryMeta}>
+              {getUpdatedLabel(reportingPlace)} · {getStatusConfidenceLabel(reportingPlace)}
             </Text>
           </View>
+
+          <View style={styles.validationPanel}>
+            <Text style={styles.validationTitle}>Que registraremos</Text>
+            <Text style={styles.validationBody}>
+              Esta validacion guarda el estado, la hora y tu distancia aproximada
+              al lugar para mantener el mapa actualizado con datos recientes.
+            </Text>
+          </View>
+
+          <Text style={styles.reportHint}>
+            Elige la opcion que mejor describa lo que ves en este momento.
+          </Text>
 
           <View style={styles.reportOptions}>
             <Pressable
@@ -2131,6 +2238,7 @@ export default function MapScreen({
                   filteredPlaces.map((place) => (
                     <Pressable
                       key={place.id}
+                      testID="search-result-row"
                       style={styles.resultRow}
                       onPress={() => focusPlaceFromSearch(place)}
                     >
@@ -2146,7 +2254,9 @@ export default function MapScreen({
                           {statusToLabel(place.status)} · {getUpdatedLabel(place)}
                         </Text>
                       </View>
-                      <Text style={styles.resultAction}>Ver</Text>
+                      <Text style={styles.resultAction}>
+                        {getPlaceDistanceLabel(searchOrigin, place) ?? ""}
+                      </Text>
                     </Pressable>
                   ))
                 ) : (
@@ -2431,6 +2541,41 @@ const styles = StyleSheet.create({
   sheetSubtitle: { marginTop: 4, fontSize: 13, color: "#475569", fontWeight: "500" },
   sheetMeta: { marginTop: 2, fontSize: 12, color: "#94a3b8" },
   sheetEyebrow: { fontSize: 11, color: "#0891b2", fontWeight: "800", textTransform: "uppercase" },
+  reportHeaderRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  reportHeaderCopy: { flex: 1 },
+  reportSummaryCard: {
+    marginTop: 14,
+    backgroundColor: "#ecfeff",
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+  },
+  reportSummaryLabel: {
+    fontSize: 12,
+    color: "#155e75",
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  reportSummaryTitle: {
+    marginTop: 8,
+    fontSize: 16,
+    lineHeight: 20,
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  reportSummaryMeta: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "#0f766e",
+    fontWeight: "600",
+  },
   placeSheetHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -2866,6 +3011,13 @@ const styles = StyleSheet.create({
   },
   validationTitle: { fontSize: 15, color: "#0f172a", fontWeight: "800" },
   validationBody: { marginTop: 6, fontSize: 13, lineHeight: 18, color: "#475569", fontWeight: "500" },
+  reportHint: {
+    marginTop: 12,
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#475569",
+    fontWeight: "600",
+  },
   reportOptions: { marginTop: 14, gap: 10 },
   reportOption: {
     borderRadius: 14,
@@ -2960,7 +3112,14 @@ const styles = StyleSheet.create({
   resultCopy: { flex: 1 },
   resultTitle: { fontSize: 15, color: "#0f172a", fontWeight: "800" },
   resultSubtitle: { marginTop: 3, fontSize: 12, color: "#64748b", fontWeight: "500" },
-  resultAction: { fontSize: 13, color: "#0891b2", fontWeight: "800" },
+  resultAction: {
+    minWidth: 56,
+    marginLeft: 12,
+    fontSize: 13,
+    color: "#0891b2",
+    fontWeight: "800",
+    textAlign: "right",
+  },
   emptySearchState: {
     paddingVertical: 20,
     alignItems: "center",
