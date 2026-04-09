@@ -53,6 +53,7 @@ import {
   type ParkingHoursMap,
   type ParkingWeekday,
 } from "../lib/parkingShared";
+import { useAppTheme } from "../theme/AppThemeContext";
 
 type PermissionState = "unknown" | "granted" | "denied";
 type LatLng = { latitude: number; longitude: number };
@@ -420,6 +421,19 @@ function getPlaceDistanceLabel(
   );
 }
 
+function getPlaceSearchableText(place: ParkingPlace) {
+  return [
+    place.name,
+    place.address,
+    place.description,
+    statusToLabel(place.status),
+    place.costNotes,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 export default function MapScreen({
   currentUser,
   onOpenProfileSettings,
@@ -432,6 +446,7 @@ export default function MapScreen({
   pendingPlaceRefreshRequestId,
   onSignOut,
 }: MapScreenProps) {
+  const theme = useAppTheme();
   const mapRef = useRef<MapView>(null);
   const placeSheetRef = useRef<BottomSheet>(null);
   const addPlaceSheetRef = useRef<BottomSheet>(null);
@@ -472,6 +487,7 @@ export default function MapScreen({
   const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
   const [placeDetailsRefreshKey, setPlaceDetailsRefreshKey] = useState(0);
   const [addPlaceSheetIndex, setAddPlaceSheetIndex] = useState(1);
+  const [lastMapRefreshAt, setLastMapRefreshAt] = useState<string | null>(null);
   const [newPlaceDraft, setNewPlaceDraft] = useState<NewPlaceDraft>(
     createEmptyNewPlaceDraft()
   );
@@ -491,6 +507,7 @@ export default function MapScreen({
         setRecentReports(nextReports);
         setSelectedPlaceId(nextPlaces[0]?.id ?? null);
         setPlaceSheetIndex(0);
+        setLastMapRefreshAt(new Date().toISOString());
         setIsLoadingPlaces(false);
       }
     };
@@ -682,14 +699,17 @@ export default function MapScreen({
             latitude: region.latitude,
             longitude: region.longitude,
           }
-        : null);
+        : {
+            latitude: PILOT_REGION.latitude,
+            longitude: PILOT_REGION.longitude,
+          });
   }, [region, userCoord]);
 
   const filteredPlaces = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const matchingPlaces = normalizedQuery
       ? mapReadyPlaces.filter((place) => {
-          const haystack = `${place.name} ${statusToLabel(place.status)}`.toLowerCase();
+          const haystack = getPlaceSearchableText(place);
           return haystack.includes(normalizedQuery);
         })
       : mapReadyPlaces;
@@ -768,6 +788,7 @@ export default function MapScreen({
       setPlaces(nextPlaces);
       setRecentReports(nextReports);
       setSelectedPlaceId(nextSelectedPlaceId);
+      setLastMapRefreshAt(new Date().toISOString());
       setReportingPlaceId((currentReportingPlaceId) =>
         currentReportingPlaceId && nextPlaces.some((place) => place.id === currentReportingPlaceId)
           ? currentReportingPlaceId
@@ -1335,7 +1356,10 @@ export default function MapScreen({
   const initialRegion: Region = region ?? PILOT_REGION;
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.surface }]}
+      edges={["top"]}
+    >
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -1420,6 +1444,11 @@ export default function MapScreen({
             <Text style={styles.legendText}>Cerrado</Text>
           </View>
         </View>
+        <Text style={styles.legendFootnote}>
+          {lastMapRefreshAt
+            ? `Ultima actualizacion ${getElapsedLabel(lastMapRefreshAt) ?? "reciente"}`
+            : "Actualiza para reflejar reportes recientes del mapa"}
+        </Text>
       </View>
 
       <View style={styles.fabColumn}>
@@ -2177,9 +2206,19 @@ export default function MapScreen({
         >
           <Pressable style={styles.searchModalDismissArea} onPress={closeSearch} />
 
-          <View style={styles.searchModalCard}>
+          <View
+            style={[
+              styles.searchModalCard,
+              { backgroundColor: theme.surfaceAlt, shadowColor: theme.primary },
+            ]}
+          >
             <View style={styles.searchModalTopRow}>
-              <View style={styles.searchInputWrap}>
+              <View
+                style={[
+                  styles.searchInputWrap,
+                  { backgroundColor: theme.surface, borderColor: theme.accentSoft },
+                ]}
+              >
                 <Text style={styles.searchInputIcon}>⌕</Text>
                 <TextInput
                   value={searchQuery}
@@ -2190,8 +2229,11 @@ export default function MapScreen({
                   style={styles.searchInput}
                 />
               </View>
-              <Pressable style={styles.searchCloseBtn} onPress={closeSearch}>
-                <Text style={styles.searchCloseBtnText}>Cerrar</Text>
+              <Pressable
+                style={[styles.searchCloseBtn, { backgroundColor: theme.primarySoft }]}
+                onPress={closeSearch}
+              >
+                <Text style={[styles.searchCloseBtnText, { color: theme.text }]}>Cerrar</Text>
               </Pressable>
             </View>
 
@@ -2202,14 +2244,29 @@ export default function MapScreen({
               keyboardShouldPersistTaps="handled"
             >
               <View style={styles.searchChipsRow}>
-                <View style={styles.searchChip}>
-                  <Text style={styles.searchChipText}>Centro</Text>
+                <View
+                  style={[
+                    styles.searchChip,
+                    { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+                  ]}
+                >
+                  <Text style={[styles.searchChipText, { color: theme.text }]}>Centro</Text>
                 </View>
-                <View style={styles.searchChip}>
-                  <Text style={styles.searchChipText}>Plazas</Text>
+                <View
+                  style={[
+                    styles.searchChip,
+                    { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+                  ]}
+                >
+                  <Text style={[styles.searchChipText, { color: theme.text }]}>Plazas</Text>
                 </View>
-                <View style={styles.searchChip}>
-                  <Text style={styles.searchChipText}>Públicos</Text>
+                <View
+                  style={[
+                    styles.searchChip,
+                    { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+                  ]}
+                >
+                  <Text style={[styles.searchChipText, { color: theme.text }]}>Públicos</Text>
                 </View>
               </View>
 
@@ -2254,7 +2311,7 @@ export default function MapScreen({
                           {statusToLabel(place.status)} · {getUpdatedLabel(place)}
                         </Text>
                       </View>
-                      <Text style={styles.resultAction}>
+                      <Text style={[styles.resultAction, { color: theme.accent }]}>
                         {getPlaceDistanceLabel(searchOrigin, place) ?? ""}
                       </Text>
                     </Pressable>
@@ -2275,9 +2332,14 @@ export default function MapScreen({
 
       <Modal visible={isMenuOpen} animationType="fade" transparent onRequestClose={closeMenu}>
         <View style={styles.menuBackdrop}>
-          <View style={styles.menuPanel}>
-            <View style={styles.menuProfileCard}>
-              <View style={styles.menuAvatar}>
+          <View style={[styles.menuPanel, { backgroundColor: theme.surfaceAlt }]}>
+            <View
+              style={[
+                styles.menuProfileCard,
+                { backgroundColor: theme.surface, borderColor: theme.accentSoft },
+              ]}
+            >
+              <View style={[styles.menuAvatar, { backgroundColor: theme.accent }]}>
                 {currentUser.avatarUrl ? (
                   <Image
                     source={{ uri: currentUser.avatarUrl }}
@@ -2288,15 +2350,17 @@ export default function MapScreen({
                 )}
               </View>
               <View style={styles.menuProfileCopy}>
-                <Text style={styles.menuProfileTitle}>{getUserDisplayName(currentUser)}</Text>
-                <Text style={styles.menuProfileSubtitle}>
+                <Text style={[styles.menuProfileTitle, { color: theme.text }]}>
+                  {getUserDisplayName(currentUser)}
+                </Text>
+                <Text style={[styles.menuProfileSubtitle, { color: theme.textMuted }]}>
                   {currentUser.email}
                   {currentUser.phone ? `\n${currentUser.phone}` : ""}
                 </Text>
               </View>
               <Pressable
                 testID="sign-out-button"
-                style={styles.menuPrimaryBtn}
+                style={[styles.menuPrimaryBtn, { backgroundColor: theme.primary }]}
                 onPress={handleSignOutPress}
               >
                 <Text style={styles.menuPrimaryBtnText}>Cerrar sesión</Text>
@@ -2309,43 +2373,68 @@ export default function MapScreen({
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.menuSection}>
-                <Text style={styles.menuSectionTitle}>Tu cuenta</Text>
+                <Text style={[styles.menuSectionTitle, { color: theme.textMuted }]}>
+                  Tu cuenta
+                </Text>
                 <Pressable
                   testID="open-profile-settings-button"
-                  style={styles.menuActionRow}
+                  style={[
+                    styles.menuActionRow,
+                    { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+                  ]}
                   onPress={openProfileSettings}
                 >
-                  <Text style={styles.menuActionIcon}>◐</Text>
+                  <Text style={[styles.menuActionIcon, { color: theme.accent }]}>◐</Text>
                   <View style={styles.menuActionCopy}>
-                    <Text style={styles.menuActionTitle}>Perfil y tema</Text>
-                    <Text style={styles.menuActionSubtitle}>Edita tu nombre visible, teléfono y estilo</Text>
+                    <Text style={[styles.menuActionTitle, { color: theme.text }]}>
+                      Perfil y tema
+                    </Text>
+                    <Text style={[styles.menuActionSubtitle, { color: theme.textMuted }]}>
+                      Edita tu nombre visible, teléfono y estilo
+                    </Text>
                   </View>
                 </Pressable>
               </View>
 
               <View style={styles.menuSection}>
-                <Text style={styles.menuSectionTitle}>Tu actividad</Text>
+                <Text style={[styles.menuSectionTitle, { color: theme.textMuted }]}>
+                  Tu actividad
+                </Text>
                 <Pressable
-                  style={styles.menuActionRow}
+                  style={[
+                    styles.menuActionRow,
+                    { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+                  ]}
                   testID="open-report-history-button"
                   onPress={openReportHistory}
                 >
-                  <Text style={styles.menuActionIcon}>✓</Text>
+                  <Text style={[styles.menuActionIcon, { color: theme.accent }]}>✓</Text>
                   <View style={styles.menuActionCopy}>
-                    <Text style={styles.menuActionTitle}>Historial de reportes</Text>
-                    <Text style={styles.menuActionSubtitle}>Tus últimas validaciones y estados enviados</Text>
+                    <Text style={[styles.menuActionTitle, { color: theme.text }]}>
+                      Historial de reportes
+                    </Text>
+                    <Text style={[styles.menuActionSubtitle, { color: theme.textMuted }]}>
+                      Tus últimas validaciones y estados enviados
+                    </Text>
                   </View>
                 </Pressable>
 
                 <Pressable
-                  style={styles.menuActionRow}
+                  style={[
+                    styles.menuActionRow,
+                    { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+                  ]}
                   testID="open-saved-places-button"
                   onPress={openSavedPlaces}
                 >
-                  <Text style={styles.menuActionIcon}>★</Text>
+                  <Text style={[styles.menuActionIcon, { color: theme.accent }]}>★</Text>
                   <View style={styles.menuActionCopy}>
-                    <Text style={styles.menuActionTitle}>Lugares guardados</Text>
-                    <Text style={styles.menuActionSubtitle}>Acceso rápido a tus estacionamientos frecuentes</Text>
+                    <Text style={[styles.menuActionTitle, { color: theme.text }]}>
+                      Lugares guardados
+                    </Text>
+                    <Text style={[styles.menuActionSubtitle, { color: theme.textMuted }]}>
+                      Acceso rápido a tus estacionamientos frecuentes
+                    </Text>
                   </View>
                 </Pressable>
               </View>
@@ -2463,6 +2552,7 @@ const styles = StyleSheet.create({
   },
   legendDockTitle: { fontSize: 11, color: "#cbd5e1", fontWeight: "700", textTransform: "uppercase" },
   legendRow: { marginTop: 10, flexDirection: "row", gap: 14 },
+  legendFootnote: { marginTop: 8, fontSize: 11, lineHeight: 15, color: "#cbd5e1", fontWeight: "600" },
   legendItem: { flexDirection: "row", alignItems: "center" },
   legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 6 },
   legendText: { fontSize: 12, color: "#f8fafc", fontWeight: "700" },

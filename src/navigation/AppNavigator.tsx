@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import React, { useEffect, useMemo, useState } from "react";
+import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import {
@@ -16,7 +16,12 @@ import ProfileSettingsScreen from "../screens/ProfileSettingsScreen";
 import ReportHistoryScreen from "../screens/ReportHistoryScreen";
 import SavedPlacesScreen from "../screens/SavedPlacesScreen";
 import { fetchCurrentUserProfile } from "../lib/profiles";
-import { type AppThemeName } from "../lib/themePreferences";
+import {
+  fetchThemePreferenceForUser,
+  getThemePalette,
+  type AppThemeName,
+} from "../lib/themePreferences";
+import { AppThemeProvider } from "../theme/AppThemeContext";
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -41,7 +46,24 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
   const [currentUser, setCurrentUser] = useState<AuthenticatedAppUser | null>(null);
+  const [themeName, setThemeName] = useState<AppThemeName>("ocean");
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const selectedTheme = useMemo(() => getThemePalette(themeName), [themeName]);
+  const navigationTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        primary: selectedTheme.accent,
+        background: selectedTheme.surface,
+        card: selectedTheme.surfaceAlt,
+        text: selectedTheme.text,
+        border: selectedTheme.accentSoft,
+        notification: selectedTheme.accent,
+      },
+    }),
+    [selectedTheme]
+  );
 
   useEffect(() => {
     let active = true;
@@ -51,14 +73,22 @@ export default function AppNavigator() {
 
       if (!baseUser) {
         setCurrentUser(null);
+        setThemeName("ocean");
         setIsAuthLoading(false);
         return;
       }
 
       try {
-        const profile = await fetchCurrentUserProfile();
+        const [profileResult, themeResult] = await Promise.allSettled([
+          fetchCurrentUserProfile(),
+          fetchThemePreferenceForUser(baseUser.id),
+        ]);
         if (!active) return;
 
+        const profile = profileResult.status === "fulfilled" ? profileResult.value : null;
+        const nextThemeName = themeResult.status === "fulfilled" ? themeResult.value : "ocean";
+
+        setThemeName(nextThemeName);
         setCurrentUser({
           ...baseUser,
           fullName: profile?.preferredName ?? profile?.fullName ?? baseUser.fullName,
@@ -68,6 +98,7 @@ export default function AppNavigator() {
       } catch (error) {
         console.error(error);
         if (!active) return;
+        setThemeName("ocean");
         setCurrentUser(baseUser);
       } finally {
         if (active) {
@@ -101,18 +132,34 @@ export default function AppNavigator() {
 
   if (isAuthLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0f172a" />
-        <Text style={styles.loadingTitle}>Cargando sesión...</Text>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: selectedTheme.primarySoft },
+        ]}
+      >
+        <ActivityIndicator size="large" color={selectedTheme.accent} />
+        <Text style={[styles.loadingTitle, { color: selectedTheme.text }]}>
+          Cargando sesión...
+        </Text>
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        {currentUser ? (
-          <>
+    <AppThemeProvider themeName={themeName}>
+      <NavigationContainer theme={navigationTheme}>
+        <Stack.Navigator
+          screenOptions={{
+            contentStyle: { backgroundColor: selectedTheme.surface },
+            headerStyle: { backgroundColor: selectedTheme.surfaceAlt },
+            headerTintColor: selectedTheme.text,
+            headerTitleStyle: { fontWeight: "800" },
+            headerShadowVisible: false,
+          }}
+        >
+          {currentUser ? (
+            <>
             <Stack.Screen
               name="Map"
               options={{ title: "ParkPulse" }}
@@ -179,12 +226,14 @@ export default function AppNavigator() {
                     fullName,
                     phone,
                     avatarUrl,
+                    themeName: nextThemeName,
                   }: {
                     fullName: string | null;
                     phone: string | null;
                     avatarUrl: string | null;
                     themeName: AppThemeName;
                   }) => {
+                    setThemeName(nextThemeName);
                     setCurrentUser((previousUser) =>
                       previousUser
                         ? {
@@ -227,16 +276,17 @@ export default function AppNavigator() {
               component={PrivacyLegalScreen}
               options={{ title: "Privacidad y legal" }}
             />
-          </>
-        ) : (
-          <Stack.Screen
-            name="Auth"
-            component={AuthScreen}
-            options={{ headerShown: false }}
-          />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+            </>
+          ) : (
+            <Stack.Screen
+              name="Auth"
+              component={AuthScreen}
+              options={{ headerShown: false }}
+            />
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </AppThemeProvider>
   );
 }
 

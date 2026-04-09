@@ -554,8 +554,7 @@ async function readPlacesFromView() {
 
   const { data, error } = await client
     .from("place_live_status")
-    .select(LIVE_PLACE_SELECT)
-    .order("name", { ascending: true });
+    .select(LIVE_PLACE_SELECT);
 
   if (error) {
     if (!isMissingSchemaFieldError(error.message)) {
@@ -565,8 +564,7 @@ async function readPlacesFromView() {
 
     const legacyResult = await client
       .from("place_live_status")
-      .select(LEGACY_LIVE_PLACE_SELECT)
-      .order("name", { ascending: true });
+      .select(LEGACY_LIVE_PLACE_SELECT);
 
     if (legacyResult.error) {
       console.error(
@@ -588,8 +586,7 @@ async function readPlacesFromTable() {
 
   const { data, error } = await client
     .from("places")
-    .select(BASE_PLACE_SELECT)
-    .order("name", { ascending: true });
+    .select(BASE_PLACE_SELECT);
 
   if (error) {
     if (!isMissingSchemaFieldError(error.message)) {
@@ -599,8 +596,7 @@ async function readPlacesFromTable() {
 
     const legacyResult = await client
       .from("places")
-      .select(LEGACY_BASE_PLACE_SELECT)
-      .order("name", { ascending: true });
+      .select(LEGACY_BASE_PLACE_SELECT);
 
     if (legacyResult.error) {
       console.error("fetchPlaces places legacy error:", legacyResult.error.message);

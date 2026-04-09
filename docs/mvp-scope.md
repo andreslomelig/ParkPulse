@@ -11,13 +11,18 @@ Help drivers find parking faster using community real-time reports (available/fu
 ## MVP Features (IN)
 - Map view with parking places markers (seeded list)
 - Place details sheet: status, last updated, confidence label
-- Phone login required to report
+- Email/password login required to report
 - Report status: Disponible / Lleno / Cerrado
 - Reports expire (TTL)
 - Proximity check to report (must be near place)
 - Rate limiting per user (anti-spam)
 - Manual refresh / periodic refresh (if no realtime)
 - Basic privacy/legal screen
+
+## Demo Assumptions
+- Supabase is configured for the live demo.
+- The pilot database is seeded with three base places in Aguascalientes.
+- The demo uses manual refresh as the operator-visible way to confirm new reports between devices.
 
 ## OUT (Not in MVP)
 - Reservations / payments

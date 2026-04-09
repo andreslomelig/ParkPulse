@@ -1,6 +1,7 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAppTheme } from "../theme/AppThemeContext";
 
 type InfoCardProps = {
   title: string;
@@ -8,23 +9,37 @@ type InfoCardProps = {
 };
 
 function InfoCard({ title, body }: InfoCardProps) {
+  const theme = useAppTheme();
+
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>{title}</Text>
-      <Text style={styles.cardBody}>{body}</Text>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+      ]}
+    >
+      <Text style={[styles.cardTitle, { color: theme.text }]}>{title}</Text>
+      <Text style={[styles.cardBody, { color: theme.textMuted }]}>{body}</Text>
     </View>
   );
 }
 
 export default function PrivacyLegalScreen() {
+  const theme = useAppTheme();
+
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.surface }]}
+      edges={["bottom"]}
+    >
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Actualizado el 7 de abril de 2026</Text>
+        <View style={[styles.hero, { backgroundColor: theme.primary }]}>
+          <Text style={[styles.eyebrow, { color: theme.accentSoft }]}>
+            Actualizado el 9 de abril de 2026
+          </Text>
           <Text style={styles.title}>Política de privacidad</Text>
           <Text style={styles.subtitle}>
             En ParkPulse tratamos la información necesaria para mostrar
@@ -36,7 +51,7 @@ export default function PrivacyLegalScreen() {
 
         <InfoCard
           title="Responsable del servicio"
-          body="ParkPulse es una plataforma digital de información sobre estacionamiento operada por ParkPulse Mobility Labs, un equipo enfocado en experiencias de movilidad urbana en Aguascalientes, México."
+          body="ParkPulse es una plataforma digital de información sobre estacionamiento mantenida por el equipo responsable de este proyecto académico y de producto para la zona piloto de Aguascalientes, México."
         />
         <InfoCard
           title="Información que recopilamos"
@@ -60,7 +75,7 @@ export default function PrivacyLegalScreen() {
         />
         <InfoCard
           title="Tus decisiones"
-          body="Puedes actualizar tu perfil, cambiar tu foto, modificar tu nombre visible y dejar de compartir nueva información desde la app en cualquier momento. Si deseas solicitar revisión o eliminación de datos asociados a tu cuenta, podrás hacerlo desde soporte del servicio."
+          body="Puedes actualizar tu perfil, cambiar tu foto, modificar tu nombre visible y dejar de compartir nueva información desde la app en cualquier momento. Si necesitas revisión o eliminación de datos asociados a tu cuenta, deberás solicitarlo al equipo responsable del proyecto."
         />
       </ScrollView>
     </SafeAreaView>

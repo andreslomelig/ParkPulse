@@ -20,7 +20,12 @@ jest.mock("./supabase", () => ({
 }));
 
 function buildSelectQuery(result: unknown) {
+  const resolved = Promise.resolve(result);
+
   return {
+    then: resolved.then.bind(resolved),
+    catch: resolved.catch.bind(resolved),
+    finally: resolved.finally.bind(resolved),
     order: jest.fn().mockResolvedValue(result),
     eq: jest.fn().mockReturnValue({
       maybeSingle: jest.fn().mockResolvedValue(result),

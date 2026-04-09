@@ -17,6 +17,7 @@ import type { AuthenticatedAppUser } from "../lib/auth";
 import { fetchPlaceById, type ParkingPlace } from "../lib/places";
 import { formatRatingBadgeSummary } from "../lib/parkingPresentation";
 import { submitParkingRating } from "../lib/ratings";
+import { useAppTheme } from "../theme/AppThemeContext";
 
 export type PlaceReviewScreenProps = {
   currentUser: AuthenticatedAppUser;
@@ -54,6 +55,7 @@ export default function PlaceReviewScreen({
   onCancel,
   onReviewSaved,
 }: PlaceReviewScreenProps) {
+  const theme = useAppTheme();
   const [place, setPlace] = useState<ParkingPlace | null>(null);
   const [isLoadingPlace, setIsLoadingPlace] = useState(true);
   const [rating, setRating] = useState(0);
@@ -123,7 +125,10 @@ export default function PlaceReviewScreen({
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.primarySoft }]}
+      edges={["bottom"]}
+    >
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -133,8 +138,8 @@ export default function PlaceReviewScreen({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.heroCard}>
-            <Text style={styles.eyebrow}>Reseña del lugar</Text>
+          <View style={[styles.heroCard, { backgroundColor: theme.primary }]}>
+            <Text style={[styles.eyebrow, { color: theme.accentSoft }]}>Reseña del lugar</Text>
             <Text style={styles.placeName}>{resolvedPlaceName}</Text>
             <Text style={styles.placeMeta}>
               {isLoadingPlace
@@ -145,9 +150,14 @@ export default function PlaceReviewScreen({
             </Text>
           </View>
 
-          <View style={styles.formCard}>
+          <View
+            style={[
+              styles.formCard,
+              { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+            ]}
+          >
             <View style={styles.profileRow}>
-              <View style={styles.avatar}>
+              <View style={[styles.avatar, { backgroundColor: theme.accent }]}>
                 {currentUser.avatarUrl ? (
                   <Image
                     source={{ uri: currentUser.avatarUrl }}
@@ -158,54 +168,77 @@ export default function PlaceReviewScreen({
                 )}
               </View>
               <View style={styles.profileCopy}>
-                <Text style={styles.profileName}>{getUserDisplayName(currentUser)}</Text>
-                <Text style={styles.profileSubtitle}>Compartiendo en ParkPulse</Text>
+                <Text style={[styles.profileName, { color: theme.text }]}>
+                  {getUserDisplayName(currentUser)}
+                </Text>
+                <Text style={[styles.profileSubtitle, { color: theme.textMuted }]}>
+                  Compartiendo en ParkPulse
+                </Text>
               </View>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Tu calificación</Text>
+              <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+                Tu calificación
+              </Text>
               <StarRatingRow
                 value={rating}
                 onChange={setRating}
                 size={40}
                 testIDPrefix="review-star"
               />
-              <Text style={styles.sectionHint}>
+              <Text style={[styles.sectionHint, { color: theme.textMuted }]}>
                 Marca de 1 a 5 estrellas según tu experiencia reciente.
               </Text>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Descripción</Text>
+              <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>Descripción</Text>
               <TextInput
                 testID="review-comment-input"
                 value={comment}
                 onChangeText={setComment}
                 placeholder="Comparte detalles sobre tu experiencia en este lugar"
                 placeholderTextColor="#94a3b8"
-                style={[styles.textArea, styles.textAreaMultiline]}
+                style={[
+                  styles.textArea,
+                  styles.textAreaMultiline,
+                  {
+                    backgroundColor: theme.surface,
+                    borderColor: theme.accentSoft,
+                    color: theme.text,
+                  },
+                ]}
                 multiline
                 maxLength={600}
                 textAlignVertical="top"
               />
-              <Text style={styles.characterCounter}>{comment.trim().length}/600</Text>
+              <Text style={[styles.characterCounter, { color: theme.textMuted }]}>
+                {comment.trim().length}/600
+              </Text>
             </View>
 
             <View style={styles.actionRow}>
               <Pressable
                 testID="cancel-review-button"
-                style={[styles.actionButton, styles.secondaryButton]}
+                style={[
+                  styles.actionButton,
+                  styles.secondaryButton,
+                  { backgroundColor: theme.primarySoft },
+                ]}
                 onPress={onCancel}
                 disabled={isSubmitting}
               >
-                <Text style={styles.secondaryButtonText}>Cancelar</Text>
+                <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+                  Cancelar
+                </Text>
               </Pressable>
               <Pressable
                 testID="publish-review-button"
                 style={[
                   styles.actionButton,
                   styles.primaryButton,
+                  { backgroundColor: theme.accent },
                   (rating < 1 || isSubmitting) && styles.disabledButton,
                 ]}
                 onPress={handlePublishReview}

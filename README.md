@@ -7,6 +7,13 @@ community input. Users can sign in, explore parking places, report real-time
 availability, save favorite places, rate and review parking lots, and maintain
 their own profile with theme and avatar customization.
 
+## Demo Notes
+
+- The current demo assumes Supabase is configured and seeded.
+- The project already includes seeded pilot places in Supabase for Aguascalientes.
+- Place status updates currently rely on manual refresh plus periodic in-app refresh.
+- Realtime subscriptions are not part of the current demo build.
+
 ## What The App Does Now
 
 - Email/password authentication with Supabase Auth
@@ -51,6 +58,12 @@ Still pending or intentionally incomplete:
 - Bot resistance and contributor reliability scoring
 - Realtime subscriptions
 - Reservations / payments
+
+For the current demo build:
+
+- authentication is email/password with Supabase Auth
+- map data is expected to come from Supabase seed data and user-generated reports
+- manual refresh is part of the intended live-data story during the pilot
 
 ## Core Domain Model
 
@@ -187,6 +200,16 @@ If native packages changed, use a clean Expo cache:
 npx expo start -c
 ```
 
+If Expo fails on startup with `TypeError: fetch failed`, the CLI is usually trying
+to reach Expo's package metadata service before Metro starts. In that case, use:
+
+```bash
+npm run start:offline
+```
+
+This keeps local development working when your network, proxy, firewall, or DNS
+blocks Expo's dependency check.
+
 ## Supabase Setup
 
 Run the SQL in [supabase/bootstrap.sql](./supabase/bootstrap.sql) inside Supabase SQL Editor.
@@ -203,6 +226,8 @@ The bootstrap sets up:
 - frontend-oriented views
 - avatar storage bucket
 - RLS policies for profile data and avatar uploads
+
+The current seeded demo data includes three pilot parking places in Aguascalientes.
 
 ## Avatar Upload Setup
 
@@ -234,6 +259,7 @@ bucket match the current app code.
 ## Available Scripts
 
 - `npm run start`: start Expo / Metro
+- `npm run start:offline`: start Expo / Metro without Expo network checks
 - `npm run android`: open Android target
 - `npm run ios`: open iOS target
 - `npm run web`: open web target
@@ -274,6 +300,7 @@ These are the main areas still needing work:
 - bot detection / abuse prevention
 - admin review tools
 - better conflict resolution for place edits
+- true realtime updates without manual refresh
 
 ## Troubleshooting
 

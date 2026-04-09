@@ -8,6 +8,7 @@ import {
   subscribeToAuthChanges,
 } from "../lib/auth";
 import { fetchCurrentUserProfile } from "../lib/profiles";
+import { fetchThemePreferenceForUser } from "../lib/themePreferences";
 
 jest.mock("../lib/auth", () => ({
   getCurrentAuthUser: jest.fn(),
@@ -17,6 +18,23 @@ jest.mock("../lib/auth", () => ({
 
 jest.mock("../lib/profiles", () => ({
   fetchCurrentUserProfile: jest.fn(),
+}));
+
+jest.mock("../lib/themePreferences", () => ({
+  fetchThemePreferenceForUser: jest.fn(),
+  getThemePalette: jest.fn((themeName: string) => ({
+    name: themeName,
+    label: themeName,
+    description: themeName,
+    primary: "#0f172a",
+    primarySoft: "#e0f2fe",
+    accent: "#0891b2",
+    accentSoft: "#cffafe",
+    surface: "#f8fafc",
+    surfaceAlt: "#ffffff",
+    text: "#0f172a",
+    textMuted: "#475569",
+  })),
 }));
 
 jest.mock("../screens/AuthScreen", () => {
@@ -31,6 +49,7 @@ jest.mock("../screens/AuthScreen", () => {
 jest.mock("../screens/MapScreen", () => {
   const React = require("react");
   const { Pressable, Text, View } = require("react-native");
+  const { useAppTheme } = require("../theme/AppThemeContext");
 
   return function MockMapScreen({
     currentUser,
@@ -47,10 +66,13 @@ jest.mock("../screens/MapScreen", () => {
     onOpenPlaceReview: (place: { id: string; name: string }) => void;
     onOpenSavedPlaces: () => void;
   }) {
+    const theme = useAppTheme();
+
     return React.createElement(
       View,
       null,
       React.createElement(Text, null, currentUser.fullName ?? currentUser.email),
+      React.createElement(Text, { testID: "navigator-theme-name" }, theme.name),
       React.createElement(
         Pressable,
         { testID: "navigator-open-history-button", onPress: onOpenReportHistory },
@@ -98,10 +120,37 @@ jest.mock("../screens/ReportHistoryScreen", () => {
 
 jest.mock("../screens/ProfileSettingsScreen", () => {
   const React = require("react");
-  const { Text } = require("react-native");
+  const { Pressable, Text, View } = require("react-native");
 
-  return function MockProfileSettingsScreen() {
-    return React.createElement(Text, null, "Profile Settings Screen");
+  return function MockProfileSettingsScreen({
+    onProfileSaved,
+  }: {
+    onProfileSaved: (payload: {
+      fullName: string | null;
+      phone: string | null;
+      avatarUrl: string | null;
+      themeName: "forest";
+    }) => void;
+  }) {
+    return React.createElement(
+      View,
+      null,
+      React.createElement(Text, null, "Profile Settings Screen"),
+      React.createElement(
+        Pressable,
+        {
+          testID: "mock-profile-save-button",
+          onPress: () =>
+            onProfileSaved({
+              fullName: "Ada Forest",
+              phone: "+52 449 123 4567",
+              avatarUrl: null,
+              themeName: "forest",
+            }),
+        },
+        React.createElement(Text, null, "Save profile")
+      )
+    );
   };
 });
 
@@ -128,6 +177,7 @@ describe("AppNavigator", () => {
     jest.clearAllMocks();
     (subscribeToAuthChanges as jest.Mock).mockReturnValue(() => undefined);
     (fetchCurrentUserProfile as jest.Mock).mockResolvedValue(null);
+    (fetchThemePreferenceForUser as jest.Mock).mockResolvedValue("sunset");
   });
 
   it("shows the auth screen when there is no active session", async () => {
@@ -171,6 +221,7 @@ describe("AppNavigator", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Ada Lovelace")).toBeTruthy();
+      expect(screen.getByTestId("navigator-theme-name").props.children).toBe("sunset");
     });
   });
 
@@ -304,6 +355,34 @@ describe("AppNavigator", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Place Review Screen")).toBeTruthy();
+    });
+  });
+
+  it("updates the app theme after saving the profile theme", async () => {
+    (getCurrentAuthUser as jest.Mock).mockResolvedValue({
+      id: "user-1",
+      email: "ada@example.com",
+      fullName: "Ada Lovelace",
+      phone: "+52 449 123 4567",
+    });
+
+    const screen = render(<AppNavigator />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("navigator-theme-name").props.children).toBe("sunset");
+    });
+
+    fireEvent.press(screen.getByTestId("navigator-open-profile-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Profile Settings Screen")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId("mock-profile-save-button"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Ada Forest")).toBeTruthy();
+      expect(screen.getByTestId("navigator-theme-name").props.children).toBe("forest");
     });
   });
 });

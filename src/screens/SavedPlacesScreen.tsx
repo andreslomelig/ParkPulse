@@ -14,6 +14,7 @@ import {
   mapSavedPlaces,
   removeSavedPlaceForUser,
 } from "../lib/savedPlaces";
+import { useAppTheme } from "../theme/AppThemeContext";
 
 export type SavedPlacesScreenProps = {
   currentUser: AuthenticatedAppUser;
@@ -66,6 +67,7 @@ export default function SavedPlacesScreen({
   currentUser,
   onOpenPlace,
 }: SavedPlacesScreenProps) {
+  const theme = useAppTheme();
   const [places, setPlaces] = useState<ParkingPlace[]>([]);
   const [savedPlaceIds, setSavedPlaceIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -176,13 +178,16 @@ export default function SavedPlacesScreen({
   }, [savedPlaces]);
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.surface }]}
+      edges={["bottom"]}
+    >
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>Tus favoritos</Text>
+        <View style={[styles.heroCard, { backgroundColor: theme.primary }]}>
+          <Text style={[styles.eyebrow, { color: theme.accentSoft }]}>Tus favoritos</Text>
           <Text style={styles.title}>Lugares guardados</Text>
           <Text style={styles.body}>
             Consulta rápidamente los estacionamientos que guardaste para volver a
@@ -219,11 +224,11 @@ export default function SavedPlacesScreen({
             </Text>
             <Pressable
               testID="saved-places-refresh-button"
-              style={styles.refreshButton}
+              style={[styles.refreshButton, { backgroundColor: theme.accentSoft }]}
               onPress={handleRefresh}
               disabled={isRefreshing}
             >
-              <Text style={styles.refreshButtonText}>
+              <Text style={[styles.refreshButtonText, { color: theme.text }]}>
                 {isRefreshing ? "Actualizando..." : "Actualizar"}
               </Text>
             </Pressable>
@@ -231,27 +236,45 @@ export default function SavedPlacesScreen({
         </View>
 
         <View style={styles.listSection}>
-          <Text style={styles.listTitle}>Tu lista</Text>
+          <Text style={[styles.listTitle, { color: theme.text }]}>Tu lista</Text>
 
           {isLoading ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Cargando guardados...</Text>
-              <Text style={styles.emptyBody}>
+            <View
+              style={[
+                styles.emptyCard,
+                { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+              ]}
+            >
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>Cargando guardados...</Text>
+              <Text style={[styles.emptyBody, { color: theme.textMuted }]}>
                 Estamos recuperando los lugares que marcaste para volver rápidamente
                 a ellos.
               </Text>
             </View>
           ) : savedPlaces.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Todavía no tienes lugares guardados.</Text>
-              <Text style={styles.emptyBody}>
+            <View
+              style={[
+                styles.emptyCard,
+                { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+              ]}
+            >
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>
+                Todavía no tienes lugares guardados.
+              </Text>
+              <Text style={[styles.emptyBody, { color: theme.textMuted }]}>
                 Cuando toques &quot;Guardar&quot; desde la ficha de un estacionamiento,
                 lo verás aquí con su estado más reciente.
               </Text>
             </View>
           ) : (
             savedPlaces.map((place) => (
-              <View key={place.id} style={styles.placeCard}>
+              <View
+                key={place.id}
+                style={[
+                  styles.placeCard,
+                  { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+                ]}
+              >
                 <View style={styles.placeTopRow}>
                   <View
                     style={[
@@ -268,46 +291,86 @@ export default function SavedPlacesScreen({
                       {statusToLabel(place.status)}
                     </Text>
                   </View>
-                  <Text style={styles.placeElapsed}>{getElapsedLabel(place.updatedAt)}</Text>
+                  <Text style={[styles.placeElapsed, { color: theme.textMuted }]}>
+                    {getElapsedLabel(place.updatedAt)}
+                  </Text>
                 </View>
 
-                <Text style={styles.placeName}>{place.name}</Text>
-                <Text style={styles.placeAddress}>{place.address ?? "Dirección por validar"}</Text>
+                <Text style={[styles.placeName, { color: theme.text }]}>{place.name}</Text>
+                <Text style={[styles.placeAddress, { color: theme.textMuted }]}>
+                  {place.address ?? "Dirección por validar"}
+                </Text>
 
                 <View style={styles.metaGrid}>
-                  <View style={styles.metaCard}>
-                    <Text style={styles.metaLabel}>Costo</Text>
-                    <Text style={styles.metaValue}>{formatCostSummary(place)}</Text>
+                  <View
+                    style={[
+                      styles.metaCard,
+                      { backgroundColor: theme.surface, borderColor: theme.accentSoft },
+                    ]}
+                  >
+                    <Text style={[styles.metaLabel, { color: theme.textMuted }]}>Costo</Text>
+                    <Text style={[styles.metaValue, { color: theme.text }]}>
+                      {formatCostSummary(place)}
+                    </Text>
                   </View>
-                  <View style={styles.metaCard}>
-                    <Text style={styles.metaLabel}>Capacidad</Text>
-                    <Text style={styles.metaValue}>{formatCapacitySummary(place)}</Text>
+                  <View
+                    style={[
+                      styles.metaCard,
+                      { backgroundColor: theme.surface, borderColor: theme.accentSoft },
+                    ]}
+                  >
+                    <Text style={[styles.metaLabel, { color: theme.textMuted }]}>Capacidad</Text>
+                    <Text style={[styles.metaValue, { color: theme.text }]}>
+                      {formatCapacitySummary(place)}
+                    </Text>
                   </View>
-                  <View style={styles.metaCard}>
-                    <Text style={styles.metaLabel}>Calificacion</Text>
-                    <Text style={styles.metaValue}>{formatRatingSummary(place)}</Text>
+                  <View
+                    style={[
+                      styles.metaCard,
+                      { backgroundColor: theme.surface, borderColor: theme.accentSoft },
+                    ]}
+                  >
+                    <Text style={[styles.metaLabel, { color: theme.textMuted }]}>Calificacion</Text>
+                    <Text style={[styles.metaValue, { color: theme.text }]}>
+                      {formatRatingSummary(place)}
+                    </Text>
                   </View>
-                  <View style={styles.metaCard}>
-                    <Text style={styles.metaLabel}>Actividad</Text>
-                    <Text style={styles.metaValue}>{formatReportVolumeSummary(place)}</Text>
+                  <View
+                    style={[
+                      styles.metaCard,
+                      { backgroundColor: theme.surface, borderColor: theme.accentSoft },
+                    ]}
+                  >
+                    <Text style={[styles.metaLabel, { color: theme.textMuted }]}>Actividad</Text>
+                    <Text style={[styles.metaValue, { color: theme.text }]}>
+                      {formatReportVolumeSummary(place)}
+                    </Text>
                   </View>
                 </View>
 
                 <View style={styles.actionRow}>
                   <Pressable
                     testID={`saved-place-open-${place.id}`}
-                    style={[styles.actionButton, styles.primaryButton]}
+                    style={[
+                      styles.actionButton,
+                      styles.primaryButton,
+                      { backgroundColor: theme.accent },
+                    ]}
                     onPress={() => handleOpenPlace(place)}
                   >
                     <Text style={styles.primaryButtonText}>Ver en mapa</Text>
                   </Pressable>
                   <Pressable
                     testID={`saved-place-remove-${place.id}`}
-                    style={[styles.actionButton, styles.secondaryButton]}
+                    style={[
+                      styles.actionButton,
+                      styles.secondaryButton,
+                      { backgroundColor: theme.primarySoft },
+                    ]}
                     onPress={() => handleRemovePlace(place)}
                     disabled={removingPlaceId === place.id}
                   >
-                    <Text style={styles.secondaryButtonText}>
+                    <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
                       {removingPlaceId === place.id ? "Quitando..." : "Quitar"}
                     </Text>
                   </Pressable>

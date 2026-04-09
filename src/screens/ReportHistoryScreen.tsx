@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { AuthenticatedAppUser } from "../lib/auth";
 import { fetchReportsForUser, type ParkingReport } from "../lib/reports";
+import { useAppTheme } from "../theme/AppThemeContext";
 
 export type ReportHistoryScreenProps = {
   currentUser: AuthenticatedAppUser;
@@ -70,6 +71,7 @@ function getElapsedLabel(isoDate: string | null) {
 export default function ReportHistoryScreen({
   currentUser,
 }: ReportHistoryScreenProps) {
+  const theme = useAppTheme();
   const [reports, setReports] = useState<ParkingReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -140,13 +142,16 @@ export default function ReportHistoryScreen({
   }, [reports]);
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.surface }]}
+      edges={["bottom"]}
+    >
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>Tu actividad</Text>
+        <View style={[styles.heroCard, { backgroundColor: theme.primary }]}>
+          <Text style={[styles.eyebrow, { color: theme.accentSoft }]}>Tu actividad</Text>
           <Text style={styles.title}>Historial de reportes</Text>
           <Text style={styles.body}>
             Revisa los estados que has validado y en qué estacionamientos has
@@ -187,11 +192,11 @@ export default function ReportHistoryScreen({
             </Text>
             <Pressable
               testID="report-history-refresh-button"
-              style={styles.refreshButton}
+              style={[styles.refreshButton, { backgroundColor: theme.accentSoft }]}
               onPress={handleRefresh}
               disabled={isRefreshing}
             >
-              <Text style={styles.refreshButtonText}>
+              <Text style={[styles.refreshButtonText, { color: theme.text }]}>
                 {isRefreshing ? "Actualizando..." : "Actualizar"}
               </Text>
             </Pressable>
@@ -199,26 +204,44 @@ export default function ReportHistoryScreen({
         </View>
 
         <View style={styles.listSection}>
-          <Text style={styles.listTitle}>Tus reportes</Text>
+          <Text style={[styles.listTitle, { color: theme.text }]}>Tus reportes</Text>
 
           {isLoading ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Cargando historial...</Text>
-              <Text style={styles.emptyBody}>
+            <View
+              style={[
+                styles.emptyCard,
+                { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+              ]}
+            >
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>Cargando historial...</Text>
+              <Text style={[styles.emptyBody, { color: theme.textMuted }]}>
                 Estamos recuperando tus reportes más recientes.
               </Text>
             </View>
           ) : reports.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Todavía no has enviado reportes.</Text>
-              <Text style={styles.emptyBody}>
+            <View
+              style={[
+                styles.emptyCard,
+                { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+              ]}
+            >
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>
+                Todavía no has enviado reportes.
+              </Text>
+              <Text style={[styles.emptyBody, { color: theme.textMuted }]}>
                 Cuando valides un estacionamiento desde el mapa, aparecerá aquí con
                 su estado y la hora del reporte.
               </Text>
             </View>
           ) : (
             reports.map((report) => (
-              <View key={report.id} style={styles.reportCard}>
+              <View
+                key={report.id}
+                style={[
+                  styles.reportCard,
+                  { backgroundColor: theme.surfaceAlt, borderColor: theme.accentSoft },
+                ]}
+              >
                 <View style={styles.reportTopRow}>
                   <View
                     style={[
@@ -235,19 +258,23 @@ export default function ReportHistoryScreen({
                       {statusToLabel(report.status)}
                     </Text>
                   </View>
-                  <Text style={styles.reportElapsed}>{getElapsedLabel(report.createdAt)}</Text>
+                  <Text style={[styles.reportElapsed, { color: theme.textMuted }]}>
+                    {getElapsedLabel(report.createdAt)}
+                  </Text>
                 </View>
 
-                <Text style={styles.reportPlace}>{report.placeName}</Text>
-                <Text style={styles.reportDate}>{formatReportDate(report.createdAt)}</Text>
+                <Text style={[styles.reportPlace, { color: theme.text }]}>{report.placeName}</Text>
+                <Text style={[styles.reportDate, { color: theme.textMuted }]}>
+                  {formatReportDate(report.createdAt)}
+                </Text>
 
-                <Text style={styles.metaText}>
+                <Text style={[styles.metaText, { color: theme.text }]}>
                   {report.reportedDistanceMeters !== null
                     ? `Distancia al reportar: ${report.reportedDistanceMeters} m`
                     : "Distancia al reportar no disponible"}
                 </Text>
 
-                <Text style={styles.reportNote}>
+                <Text style={[styles.reportNote, { color: theme.textMuted }]}>
                   {report.note ?? "Sin nota adicional en este reporte."}
                 </Text>
               </View>

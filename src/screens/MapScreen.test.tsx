@@ -282,6 +282,48 @@ describe("MapScreen", () => {
     });
   });
 
+  it("matches search text against address and descriptive location copy", async () => {
+    (fetchPlaces as jest.Mock).mockResolvedValueOnce([
+      {
+        ...basePlaces[0],
+        id: "address-match",
+        name: "Parking Altaria Norte",
+        address: "Blvd. a Zacatecas, Colonia Trojes de Alonso",
+        description: "Acceso rápido a plaza Altaria",
+        latitude: 21.9102,
+        longitude: -102.2901,
+      },
+      {
+        ...basePlaces[1],
+        id: "other-place",
+        name: "Centro Histórico",
+        address: "Calle Nieto, Zona Centro",
+      },
+    ]);
+
+    const screen = renderMapScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Parking Altaria Norte")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Buscar estacionamiento"));
+
+    const searchInput = await waitFor(() =>
+      screen.getByPlaceholderText("Buscar zona, plaza o estacionamiento")
+    );
+
+    fireEvent.changeText(searchInput, "Trojes");
+
+    let resultRows = await waitFor(() => screen.getAllByTestId("search-result-row"));
+    expect(within(resultRows[0]).getByText("Parking Altaria Norte")).toBeTruthy();
+
+    fireEvent.changeText(searchInput, "Altaria");
+
+    resultRows = await waitFor(() => screen.getAllByTestId("search-result-row"));
+    expect(within(resultRows[0]).getByText("Parking Altaria Norte")).toBeTruthy();
+  });
+
   it("sorts matching search results by proximity", async () => {
     (fetchPlaces as jest.Mock).mockResolvedValueOnce([
       {
