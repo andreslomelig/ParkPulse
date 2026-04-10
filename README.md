@@ -7,6 +7,35 @@ community input. Users can sign in, explore parking places, report real-time
 availability, save favorite places, rate and review parking lots, and maintain
 their own profile with theme and avatar customization.
 
+## Why It Matters
+
+Finding parking is usually fragmented, stale, and frustrating. ParkPulse turns
+that into a lightweight community feedback loop: drivers can discover parking
+spots, check recent status signals, and contribute live updates that help the
+next user make a faster decision.
+
+## Highlights
+
+- React Native + Expo mobile app with Supabase backend
+- Community reporting flow for `available`, `full`, and `closed`
+- Map-first UX with search, saved places, reviews, and profile customization
+- Pilot-ready data model with seeded places, TTL-based status updates, and
+  authenticated user activity
+
+## Screenshots
+
+Main map flow:
+
+![ParkPulse map](docs/images/parkpulse-map.jpeg)
+
+Search and discovery:
+
+![ParkPulse search](docs/images/parkpulse-search.jpeg)
+
+Profile and personalization:
+
+![ParkPulse profile](docs/images/parkpulse-profile.jpeg)
+
 ## Demo Notes
 
 - The current demo assumes Supabase is configured and seeded.
