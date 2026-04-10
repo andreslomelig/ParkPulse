@@ -24,17 +24,11 @@ next user make a faster decision.
 
 ## Screenshots
 
-Main map flow:
-
-![ParkPulse map](docs/images/parkpulse-map.jpeg)
-
-Search and discovery:
-
-![ParkPulse search](docs/images/parkpulse-search.jpeg)
-
-Profile and personalization:
-
-![ParkPulse profile](docs/images/parkpulse-profile.jpeg)
+<p align="center">
+  <img src="docs/images/parkpulse-map.jpeg" alt="ParkPulse map" width="32%" />
+  <img src="docs/images/parkpulse-search.jpeg" alt="ParkPulse search" width="32%" />
+  <img src="docs/images/parkpulse-profile.jpeg" alt="ParkPulse profile" width="32%" />
+</p>
 
 ## Demo Notes
 
